@@ -28,6 +28,11 @@ type StoredTokens struct {
 }
 
 func getConfigPath() (string, error) {
+	// Allow overriding config path for testing
+	if testPath := os.Getenv("COSTCO_TEST_CONFIG_PATH"); testPath != "" {
+		return testPath, nil
+	}
+	
 	home, err := os.UserHomeDir()
 	if err != nil {
 		return "", err
