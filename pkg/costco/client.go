@@ -295,14 +295,18 @@ func (c *Client) GetOnlineOrders(ctx context.Context, startDate, endDate string,
 	}
 
 	var result struct {
-		GetOnlineOrders OnlineOrdersResponse `json:"getOnlineOrders"`
+		GetOnlineOrders []OnlineOrdersResponse `json:"getOnlineOrders"`
 	}
 
 	if err := c.executeGraphQL(ctx, OnlineOrdersQuery, variables, &result); err != nil {
 		return nil, err
 	}
 
-	return &result.GetOnlineOrders, nil
+	if len(result.GetOnlineOrders) == 0 {
+		return nil, fmt.Errorf("no order data returned")
+	}
+
+	return &result.GetOnlineOrders[0], nil
 }
 
 func (c *Client) GetReceipts(ctx context.Context, startDate, endDate, documentType, documentSubType string) (*ReceiptsWithCountsResponse, error) {
@@ -313,15 +317,27 @@ func (c *Client) GetReceipts(ctx context.Context, startDate, endDate, documentTy
 		"documentSubType": documentSubType,
 	}
 
-	var result struct {
-		ReceiptsWithCounts ReceiptsWithCountsResponse `json:"receiptsWithCounts"`
+	// Try as array first, similar to orders
+	var resultArray struct {
+		ReceiptsWithCounts []ReceiptsWithCountsResponse `json:"receiptsWithCounts"`
 	}
 
-	if err := c.executeGraphQL(ctx, ReceiptsQuery, variables, &result); err != nil {
-		return nil, err
+	if err := c.executeGraphQL(ctx, ReceiptsQuery, variables, &resultArray); err != nil {
+		// If array fails, try as object (backward compatibility)
+		var resultObject struct {
+			ReceiptsWithCounts ReceiptsWithCountsResponse `json:"receiptsWithCounts"`
+		}
+		if err2 := c.executeGraphQL(ctx, ReceiptsQuery, variables, &resultObject); err2 != nil {
+			return nil, fmt.Errorf("failed to decode as array: %v, and as object: %v", err, err2)
+		}
+		return &resultObject.ReceiptsWithCounts, nil
 	}
 
-	return &result.ReceiptsWithCounts, nil
+	if len(resultArray.ReceiptsWithCounts) == 0 {
+		return nil, fmt.Errorf("no receipt data returned")
+	}
+
+	return &resultArray.ReceiptsWithCounts[0], nil
 }
 
 func generateUUID() string {

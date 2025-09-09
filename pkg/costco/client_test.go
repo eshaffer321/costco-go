@@ -156,23 +156,25 @@ func TestGetOnlineOrders(t *testing.T) {
 
 			resp := map[string]interface{}{
 				"data": map[string]interface{}{
-					"getOnlineOrders": map[string]interface{}{
-						"pageNumber":           1,
-						"pageSize":             10,
-						"totalNumberOfRecords": 1,
-						"bcOrders": []map[string]interface{}{
-							{
-								"orderHeaderId":      "12345",
-								"orderPlacedDate":    "2025-01-15",
-								"orderNumber":        "ORD-001",
-								"orderTotal":         99.99,
-								"warehouseNumber":    "847",
-								"status":             "Delivered",
-								"emailAddress":       "test@example.com",
-								"orderCancelAllowed": false,
-								"orderPaymentFailed": false,
-								"orderReturnAllowed": true,
-								"orderLineItems":     []interface{}{},
+					"getOnlineOrders": []map[string]interface{}{
+						{
+							"pageNumber":           1,
+							"pageSize":             10,
+							"totalNumberOfRecords": 1,
+							"bcOrders": []map[string]interface{}{
+								{
+									"orderHeaderId":      "12345",
+									"orderPlacedDate":    "2025-01-15",
+									"orderNumber":        "ORD-001",
+									"orderTotal":         99.99,
+									"warehouseNumber":    "847",
+									"status":             "Delivered",
+									"emailAddress":       "test@example.com",
+									"orderCancelAllowed": false,
+									"orderPaymentFailed": false,
+									"orderReturnAllowed": true,
+									"orderLineItems":     []interface{}{},
+								},
 							},
 						},
 					},
