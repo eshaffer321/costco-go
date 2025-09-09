@@ -3,27 +3,27 @@ package costco
 import "time"
 
 type TokenResponse struct {
-	IDToken                string `json:"id_token"`
-	TokenType              string `json:"token_type"`
-	NotBefore              int64  `json:"not_before"`
-	ClientInfo             string `json:"client_info"`
-	Scope                  string `json:"scope"`
-	RefreshToken           string `json:"refresh_token"`
-	RefreshTokenExpiresIn  int    `json:"refresh_token_expires_in"`
+	IDToken               string `json:"id_token"`
+	TokenType             string `json:"token_type"`
+	NotBefore             int64  `json:"not_before"`
+	ClientInfo            string `json:"client_info"`
+	Scope                 string `json:"scope"`
+	RefreshToken          string `json:"refresh_token"`
+	RefreshTokenExpiresIn int    `json:"refresh_token_expires_in"`
 }
 
 type OnlineOrder struct {
-	OrderHeaderID              string          `json:"orderHeaderId"`
-	OrderPlacedDate            string          `json:"orderPlacedDate"`
-	OrderNumber                string          `json:"orderNumber"`
-	OrderTotal                 float64         `json:"orderTotal"`
-	WarehouseNumber            string          `json:"warehouseNumber"`
-	Status                     string          `json:"status"`
-	EmailAddress               string          `json:"emailAddress"`
-	OrderCancelAllowed         bool            `json:"orderCancelAllowed"`
-	OrderPaymentFailed         bool            `json:"orderPaymentFailed"`
-	OrderReturnAllowed         bool            `json:"orderReturnAllowed"`
-	OrderLineItems             []OrderLineItem `json:"orderLineItems"`
+	OrderHeaderID      string          `json:"orderHeaderId"`
+	OrderPlacedDate    string          `json:"orderPlacedDate"`
+	OrderNumber        string          `json:"orderNumber"`
+	OrderTotal         float64         `json:"orderTotal"`
+	WarehouseNumber    string          `json:"warehouseNumber"`
+	Status             string          `json:"status"`
+	EmailAddress       string          `json:"emailAddress"`
+	OrderCancelAllowed bool            `json:"orderCancelAllowed"`
+	OrderPaymentFailed bool            `json:"orderPaymentFailed"`
+	OrderReturnAllowed bool            `json:"orderReturnAllowed"`
+	OrderLineItems     []OrderLineItem `json:"orderLineItems"`
 }
 
 type OrderLineItem struct {
@@ -55,28 +55,28 @@ type OrderLineItem struct {
 }
 
 type Shipment struct {
-	ShipmentID                      string         `json:"shipmentId"`
-	OrderHeaderID                   string         `json:"orderHeaderId"`
-	OrderShipToID                   string         `json:"orderShipToId"`
-	LineNumber                      int            `json:"lineNumber"`
-	OrderNumber                     string         `json:"orderNumber"`
-	ShippingType                    string         `json:"shippingType"`
-	ShippingTimeFrame               string         `json:"shippingTimeFrame"`
-	ShippedDate                     string         `json:"shippedDate"`
-	PackageNumber                   string         `json:"packageNumber"`
-	TrackingNumber                  string         `json:"trackingNumber"`
-	TrackingSiteURL                 string         `json:"trackingSiteUrl"`
-	CarrierName                     string         `json:"carrierName"`
-	EstimatedArrivalDate            string         `json:"estimatedArrivalDate"`
-	DeliveredDate                   string         `json:"deliveredDate"`
-	IsDeliveryDelayed               bool           `json:"isDeliveryDelayed"`
-	IsEstimatedArrivalDateEligible  bool           `json:"isEstimatedArrivalDateEligible"`
-	StatusTypeID                    string         `json:"statusTypeId"`
-	Status                          string         `json:"status"`
-	PickUpReadyDate                 string         `json:"pickUpReadyDate"`
-	PickUpCompletedDate             string         `json:"pickUpCompletedDate"`
-	ReasonCode                      string         `json:"reasonCode"`
-	TrackingEvent                   *TrackingEvent `json:"trackingEvent"`
+	ShipmentID                     string         `json:"shipmentId"`
+	OrderHeaderID                  string         `json:"orderHeaderId"`
+	OrderShipToID                  string         `json:"orderShipToId"`
+	LineNumber                     int            `json:"lineNumber"`
+	OrderNumber                    string         `json:"orderNumber"`
+	ShippingType                   string         `json:"shippingType"`
+	ShippingTimeFrame              string         `json:"shippingTimeFrame"`
+	ShippedDate                    string         `json:"shippedDate"`
+	PackageNumber                  string         `json:"packageNumber"`
+	TrackingNumber                 string         `json:"trackingNumber"`
+	TrackingSiteURL                string         `json:"trackingSiteUrl"`
+	CarrierName                    string         `json:"carrierName"`
+	EstimatedArrivalDate           string         `json:"estimatedArrivalDate"`
+	DeliveredDate                  string         `json:"deliveredDate"`
+	IsDeliveryDelayed              bool           `json:"isDeliveryDelayed"`
+	IsEstimatedArrivalDateEligible bool           `json:"isEstimatedArrivalDateEligible"`
+	StatusTypeID                   string         `json:"statusTypeId"`
+	Status                         string         `json:"status"`
+	PickUpReadyDate                string         `json:"pickUpReadyDate"`
+	PickUpCompletedDate            string         `json:"pickUpCompletedDate"`
+	ReasonCode                     string         `json:"reasonCode"`
+	TrackingEvent                  *TrackingEvent `json:"trackingEvent"`
 }
 
 type TrackingEvent struct {
@@ -96,82 +96,82 @@ type OnlineOrdersResponse struct {
 }
 
 type Receipt struct {
-	WarehouseName         string        `json:"warehouseName"`
-	ReceiptType           string        `json:"receiptType"`
-	DocumentType          string        `json:"documentType"`
-	TransactionDateTime   string        `json:"transactionDateTime"`
-	TransactionDate       string        `json:"transactionDate"`
-	CompanyNumber         int           `json:"companyNumber"`
-	WarehouseNumber       int           `json:"warehouseNumber"`
-	OperatorNumber        int           `json:"operatorNumber"`
-	WarehouseShortName    string        `json:"warehouseShortName"`
-	RegisterNumber        int           `json:"registerNumber"`
-	TransactionNumber     int           `json:"transactionNumber"`
-	TransactionType       string        `json:"transactionType"`
-	TransactionBarcode    string        `json:"transactionBarcode"`
-	Total                 float64       `json:"total"`
-	WarehouseAddress1     string        `json:"warehouseAddress1"`
-	WarehouseAddress2     string        `json:"warehouseAddress2"`
-	WarehouseCity         string        `json:"warehouseCity"`
-	WarehouseState        string        `json:"warehouseState"`
-	WarehouseCountry      string        `json:"warehouseCountry"`
-	WarehousePostalCode   string        `json:"warehousePostalCode"`
-	TotalItemCount        int           `json:"totalItemCount"`
-	SubTotal              float64       `json:"subTotal"`
-	Taxes                 float64       `json:"taxes"`
-	InvoiceNumber         interface{}   `json:"invoiceNumber"` // Can be string or number for fuel receipts
-	SequenceNumber        interface{}   `json:"sequenceNumber"` // Can be string or number for fuel receipts
-	ItemArray             []ReceiptItem `json:"itemArray"`
-	TenderArray           []Tender      `json:"tenderArray"`
-	SubTaxes              *SubTaxes     `json:"subTaxes"`
-	InstantSavings        float64       `json:"instantSavings"`
-	MembershipNumber      string        `json:"membershipNumber"`
+	WarehouseName       string        `json:"warehouseName"`
+	ReceiptType         string        `json:"receiptType"`
+	DocumentType        string        `json:"documentType"`
+	TransactionDateTime string        `json:"transactionDateTime"`
+	TransactionDate     string        `json:"transactionDate"`
+	CompanyNumber       int           `json:"companyNumber"`
+	WarehouseNumber     int           `json:"warehouseNumber"`
+	OperatorNumber      int           `json:"operatorNumber"`
+	WarehouseShortName  string        `json:"warehouseShortName"`
+	RegisterNumber      int           `json:"registerNumber"`
+	TransactionNumber   int           `json:"transactionNumber"`
+	TransactionType     string        `json:"transactionType"`
+	TransactionBarcode  string        `json:"transactionBarcode"`
+	Total               float64       `json:"total"`
+	WarehouseAddress1   string        `json:"warehouseAddress1"`
+	WarehouseAddress2   string        `json:"warehouseAddress2"`
+	WarehouseCity       string        `json:"warehouseCity"`
+	WarehouseState      string        `json:"warehouseState"`
+	WarehouseCountry    string        `json:"warehouseCountry"`
+	WarehousePostalCode string        `json:"warehousePostalCode"`
+	TotalItemCount      int           `json:"totalItemCount"`
+	SubTotal            float64       `json:"subTotal"`
+	Taxes               float64       `json:"taxes"`
+	InvoiceNumber       interface{}   `json:"invoiceNumber"`  // Can be string or number for fuel receipts
+	SequenceNumber      interface{}   `json:"sequenceNumber"` // Can be string or number for fuel receipts
+	ItemArray           []ReceiptItem `json:"itemArray"`
+	TenderArray         []Tender      `json:"tenderArray"`
+	SubTaxes            *SubTaxes     `json:"subTaxes"`
+	InstantSavings      float64       `json:"instantSavings"`
+	MembershipNumber    string        `json:"membershipNumber"`
 }
 
 type ReceiptItem struct {
-	ItemNumber               string  `json:"itemNumber"`
-	ItemDescription01        string  `json:"itemDescription01"`
-	FrenchItemDescription1   string  `json:"frenchItemDescription1"`
-	ItemDescription02        string  `json:"itemDescription02"`
-	FrenchItemDescription2   string  `json:"frenchItemDescription2"`
-	ItemIdentifier           string  `json:"itemIdentifier"`
-	ItemDepartmentNumber     int     `json:"itemDepartmentNumber"`
-	Unit                     int     `json:"unit"`
-	Amount                   float64 `json:"amount"`
-	TaxFlag                  string  `json:"taxFlag"`
-	MerchantID               string  `json:"merchantID"`
-	EntryMethod              string  `json:"entryMethod"`
-	TransDepartmentNumber    int     `json:"transDepartmentNumber"`
-	FuelUnitQuantity         float64 `json:"fuelUnitQuantity"`
-	FuelGradeCode            string  `json:"fuelGradeCode"`
-	ItemUnitPriceAmount      float64 `json:"itemUnitPriceAmount"`
-	FuelUomCode              string  `json:"fuelUomCode"`
-	FuelUomDescription       string  `json:"fuelUomDescription"`
-	FuelUomDescriptionFr     string  `json:"fuelUomDescriptionFr"`
-	FuelGradeDescription     string  `json:"fuelGradeDescription"`
-	FuelGradeDescriptionFr   string  `json:"fuelGradeDescriptionFr"`
+	ItemNumber             string  `json:"itemNumber"`
+	ItemDescription01      string  `json:"itemDescription01"`
+	FrenchItemDescription1 string  `json:"frenchItemDescription1"`
+	ItemDescription02      string  `json:"itemDescription02"`
+	FrenchItemDescription2 string  `json:"frenchItemDescription2"`
+	ItemIdentifier         string  `json:"itemIdentifier"`
+	ItemDepartmentNumber   int     `json:"itemDepartmentNumber"`
+	Unit                   int     `json:"unit"`
+	Amount                 float64 `json:"amount"`
+	TaxFlag                string  `json:"taxFlag"`
+	MerchantID             string  `json:"merchantID"`
+	EntryMethod            string  `json:"entryMethod"`
+	TransDepartmentNumber  int     `json:"transDepartmentNumber"`
+	FuelUnitQuantity       float64 `json:"fuelUnitQuantity"`
+	FuelGradeCode          string  `json:"fuelGradeCode"`
+	ItemUnitPriceAmount    float64 `json:"itemUnitPriceAmount"`
+	FuelUomCode            string  `json:"fuelUomCode"`
+	FuelUomDescription     string  `json:"fuelUomDescription"`
+	FuelUomDescriptionFr   string  `json:"fuelUomDescriptionFr"`
+	FuelGradeDescription   string  `json:"fuelGradeDescription"`
+	FuelGradeDescriptionFr string  `json:"fuelGradeDescriptionFr"`
 }
 
 type Tender struct {
-	TenderTypeCode                string  `json:"tenderTypeCode"`
-	TenderSubTypeCode             string  `json:"tenderSubTypeCode"`
-	TenderDescription             string  `json:"tenderDescription"`
-	AmountTender                  float64 `json:"amountTender"`
-	DisplayAccountNumber          string  `json:"displayAccountNumber"`
-	SequenceNumber                string  `json:"sequenceNumber"`
-	ApprovalNumber                string  `json:"approvalNumber"`
-	ResponseCode                  string  `json:"responseCode"`
-	TenderTypeName                string  `json:"tenderTypeName"`
-	TransactionID                 string  `json:"transactionID"`
-	MerchantID                    string  `json:"merchantID"`
-	EntryMethod                   string  `json:"entryMethod"`
-	TenderAcctTxnNumber           string  `json:"tenderAcctTxnNumber"`
-	TenderAuthorizationCode       string  `json:"tenderAuthorizationCode"`
-	TenderTypeNameFr              string  `json:"tenderTypeNameFr"`
-	TenderEntryMethodDescription  string  `json:"tenderEntryMethodDescription"`
-	WalletType                    string  `json:"walletType"`
-	WalletID                      string  `json:"walletId"`
-	StoredValueBucket             string  `json:"storedValueBucket"`
+	TenderTypeCode               string  `json:"tenderTypeCode"`
+	TenderSubTypeCode            string  `json:"tenderSubTypeCode"`
+	TenderDescription            string  `json:"tenderDescription"`
+	AmountTender                 float64 `json:"amountTender"`
+	DisplayAccountNumber         string  `json:"displayAccountNumber"`
+	SequenceNumber               string  `json:"sequenceNumber"`
+	ApprovalNumber               string  `json:"approvalNumber"`
+	ResponseCode                 string  `json:"responseCode"`
+	TenderTypeName               string  `json:"tenderTypeName"`
+	TransactionID                string  `json:"transactionID"`
+	MerchantID                   string  `json:"merchantID"`
+	EntryMethod                  string  `json:"entryMethod"`
+	TenderAcctTxnNumber          string  `json:"tenderAcctTxnNumber"`
+	TenderAuthorizationCode      string  `json:"tenderAuthorizationCode"`
+	TenderTypeNameFr             string  `json:"tenderTypeNameFr"`
+	TenderEntryMethodDescription string  `json:"tenderEntryMethodDescription"`
+	WalletType                   string  `json:"walletType"`
+	WalletID                     string  `json:"walletId"`
+	StoredValueBucket            string  `json:"storedValueBucket"`
 }
 
 type SubTaxes struct {
@@ -207,11 +207,11 @@ type SubTaxes struct {
 }
 
 type ReceiptsWithCountsResponse struct {
-	InWarehouse  int       `json:"inWarehouse"`
-	GasStation   int       `json:"gasStation"`
-	CarWash      int       `json:"carWash"`
-	GasAndCarWash int      `json:"gasAndCarWash"`
-	Receipts     []Receipt `json:"receipts"`
+	InWarehouse   int       `json:"inWarehouse"`
+	GasStation    int       `json:"gasStation"`
+	CarWash       int       `json:"carWash"`
+	GasAndCarWash int       `json:"gasAndCarWash"`
+	Receipts      []Receipt `json:"receipts"`
 }
 
 type GraphQLRequest struct {

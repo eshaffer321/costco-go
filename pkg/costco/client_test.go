@@ -22,7 +22,7 @@ func TestNewClient(t *testing.T) {
 	}
 
 	client := NewClient(config)
-	
+
 	assert.NotNil(t, client)
 	assert.Equal(t, config.Email, client.config.Email)
 	assert.Equal(t, config.Password, client.config.Password)
@@ -38,7 +38,7 @@ func TestAuthenticate(t *testing.T) {
 
 		err := r.ParseForm()
 		require.NoError(t, err)
-		
+
 		assert.Equal(t, ClientID, r.Form.Get("client_id"))
 		assert.Equal(t, "test@example.com", r.Form.Get("username"))
 		assert.Equal(t, "password123", r.Form.Get("password"))
@@ -72,7 +72,7 @@ func TestAuthenticate(t *testing.T) {
 
 	err := client.authenticate()
 	require.NoError(t, err)
-	
+
 	assert.NotNil(t, client.token)
 	assert.NotEmpty(t, client.token.IDToken)
 	assert.Equal(t, "test-refresh-token", client.token.RefreshToken)
@@ -86,7 +86,7 @@ func TestRefreshToken(t *testing.T) {
 
 		if r.Form.Get("grant_type") == "refresh_token" {
 			assert.Equal(t, "old-refresh-token", r.Form.Get("refresh_token"))
-			
+
 			resp := TokenResponse{
 				IDToken:               generateTestJWT(time.Now().Add(2 * time.Hour).Unix()),
 				TokenType:             "Bearer",
@@ -121,7 +121,7 @@ func TestRefreshToken(t *testing.T) {
 
 	err := client.refreshToken()
 	require.NoError(t, err)
-	
+
 	assert.NotNil(t, client.token)
 	assert.Equal(t, "new-refresh-token", client.token.RefreshToken)
 	assert.True(t, client.tokenExpiry.After(time.Now()))
@@ -158,7 +158,7 @@ func TestGetOnlineOrders(t *testing.T) {
 				"data": map[string]interface{}{
 					"getOnlineOrders": map[string]interface{}{
 						"pageNumber":           1,
-						"pageSize":            10,
+						"pageSize":             10,
 						"totalNumberOfRecords": 1,
 						"bcOrders": []map[string]interface{}{
 							{
@@ -201,7 +201,7 @@ func TestGetOnlineOrders(t *testing.T) {
 
 	orders, err := client.GetOnlineOrders(context.Background(), "2025-01-01", "2025-01-31", 1, 10)
 	require.NoError(t, err)
-	
+
 	assert.NotNil(t, orders)
 	assert.Equal(t, 1, orders.PageNumber)
 	assert.Equal(t, 10, orders.PageSize)
@@ -251,12 +251,12 @@ func TestGetReceiptDetail(t *testing.T) {
 								"membershipNumber":    "111869503713",
 								"itemArray": []map[string]interface{}{
 									{
-										"itemNumber":           "1529345",
-										"itemDescription01":    "ALM TORTILLA",
-										"itemDescription02":    "20CT T8H5 P720 SL45",
-										"unit":                 1,
-										"amount":               11.89,
-										"itemUnitPriceAmount":  11.89,
+										"itemNumber":          "1529345",
+										"itemDescription01":   "ALM TORTILLA",
+										"itemDescription02":   "20CT T8H5 P720 SL45",
+										"unit":                1,
+										"amount":              11.89,
+										"itemUnitPriceAmount": 11.89,
 									},
 								},
 								"tenderArray": []map[string]interface{}{
@@ -295,7 +295,7 @@ func TestGetReceiptDetail(t *testing.T) {
 
 	receipt, err := client.GetReceiptDetail(context.Background(), "21134300501862509051323", "warehouse")
 	require.NoError(t, err)
-	
+
 	assert.NotNil(t, receipt)
 	assert.Equal(t, "MERIDIAN", receipt.WarehouseName)
 	assert.Equal(t, "21134300501862509051323", receipt.TransactionBarcode)
@@ -310,8 +310,8 @@ func generateTestJWT(exp int64) string {
 	// This is a simplified JWT for testing - not cryptographically valid
 	payload := fmt.Sprintf(`{"exp":%d,"iat":1757379753,"email":"test@example.com"}`, exp)
 	// In a real JWT these would be base64url encoded, but for testing we can use a simplified version
-	return "eyJhbGciOiJSUzI1NiIsImtpZCI6InRlc3QiLCJ0eXAiOiJKV1QifQ." + 
-		base64Encode(payload) + 
+	return "eyJhbGciOiJSUzI1NiIsImtpZCI6InRlc3QiLCJ0eXAiOiJKV1QifQ." +
+		base64Encode(payload) +
 		".signature"
 }
 
@@ -334,12 +334,12 @@ func (t *testTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 	} else {
 		testURL += req.URL.Path
 	}
-	
+
 	newReq, err := http.NewRequest(req.Method, testURL, req.Body)
 	if err != nil {
 		return nil, err
 	}
-	
+
 	newReq.Header = req.Header
 	return http.DefaultTransport.RoundTrip(newReq)
 }

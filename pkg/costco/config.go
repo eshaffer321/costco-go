@@ -96,7 +96,7 @@ func SaveTokens(tokens *StoredTokens) error {
 	}
 
 	tokens.UpdatedAt = time.Now()
-	
+
 	data, err := json.MarshalIndent(tokens, "", "  ")
 	if err != nil {
 		return err
@@ -150,7 +150,7 @@ func GetConfigInfo() string {
 	}
 
 	info := fmt.Sprintf("Config directory: %s\n", configPath)
-	
+
 	// Check if config exists
 	configFile := filepath.Join(configPath, configFile)
 	if _, err := os.Stat(configFile); err == nil {
@@ -158,12 +158,12 @@ func GetConfigInfo() string {
 	} else {
 		info += fmt.Sprintf("Config file: %s (not found)\n", configFile)
 	}
-	
+
 	// Check if tokens exist
 	tokenFile := filepath.Join(configPath, tokenFile)
 	if _, err := os.Stat(tokenFile); err == nil {
 		info += fmt.Sprintf("Token file: %s (exists)\n", tokenFile)
-		
+
 		// Try to load and show token status
 		if tokens, err := LoadTokens(); err == nil && tokens != nil {
 			if time.Now().Before(tokens.TokenExpiry) {
@@ -176,6 +176,6 @@ func GetConfigInfo() string {
 	} else {
 		info += fmt.Sprintf("Token file: %s (not found)\n", tokenFile)
 	}
-	
+
 	return info
 }

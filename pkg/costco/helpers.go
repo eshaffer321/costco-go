@@ -25,20 +25,20 @@ func (c *Client) GetAllTransactionItems(ctx context.Context, startDate, endDate 
 	}
 
 	var transactions []TransactionWithItems
-	
+
 	// For each receipt, get the full details
 	for _, receipt := range receipts.Receipts {
 		// Skip if no barcode
 		if receipt.TransactionBarcode == "" {
 			continue
 		}
-		
+
 		// Determine document type based on receipt type
 		documentType := "warehouse"
 		if receipt.ReceiptType == "Gas Station" || receipt.DocumentType == "fuel" {
 			documentType = "fuel"
 		}
-		
+
 		// Get full receipt details including all items
 		detail, err := c.GetReceiptDetail(ctx, receipt.TransactionBarcode, documentType)
 		if err != nil {
@@ -46,10 +46,10 @@ func (c *Client) GetAllTransactionItems(ctx context.Context, startDate, endDate 
 			fmt.Printf("Warning: Could not get details for %s (type: %s): %v\n", receipt.TransactionBarcode, documentType, err)
 			continue
 		}
-		
+
 		// Parse the transaction date
 		txDate, _ := time.Parse("2006-01-02T15:04:05", detail.TransactionDateTime)
-		
+
 		transaction := TransactionWithItems{
 			TransactionBarcode: detail.TransactionBarcode,
 			TransactionDate:    txDate,
@@ -58,10 +58,10 @@ func (c *Client) GetAllTransactionItems(ctx context.Context, startDate, endDate 
 			Items:              detail.ItemArray,
 			MembershipNumber:   detail.MembershipNumber,
 		}
-		
+
 		transactions = append(transactions, transaction)
 	}
-	
+
 	return transactions, nil
 }
 
@@ -76,14 +76,14 @@ func (c *Client) GetItemHistory(ctx context.Context, itemNumber, startDate, endD
 	if err != nil {
 		return nil, err
 	}
-	
+
 	var history []struct {
 		Date     string
 		Quantity int
 		Price    float64
 		Barcode  string
 	}
-	
+
 	for _, tx := range transactions {
 		for _, item := range tx.Items {
 			if item.ItemNumber == itemNumber {
@@ -101,7 +101,7 @@ func (c *Client) GetItemHistory(ctx context.Context, itemNumber, startDate, endD
 			}
 		}
 	}
-	
+
 	return history, nil
 }
 
@@ -115,13 +115,13 @@ func (c *Client) GetSpendingSummary(ctx context.Context, startDate, endDate stri
 	if err != nil {
 		return nil, err
 	}
-	
+
 	summary := make(map[int]struct {
 		Department string
 		Total      float64
 		ItemCount  int
 	})
-	
+
 	for _, tx := range transactions {
 		for _, item := range tx.Items {
 			dept := item.ItemDepartmentNumber
@@ -132,7 +132,7 @@ func (c *Client) GetSpendingSummary(ctx context.Context, startDate, endDate stri
 			summary[dept] = current
 		}
 	}
-	
+
 	return summary, nil
 }
 
@@ -148,7 +148,7 @@ func (c *Client) GetFrequentItems(ctx context.Context, startDate, endDate string
 	if err != nil {
 		return nil, err
 	}
-	
+
 	type itemStats struct {
 		ItemNumber      string
 		ItemDescription string
@@ -156,9 +156,9 @@ func (c *Client) GetFrequentItems(ctx context.Context, startDate, endDate string
 		TotalSpent      float64
 		PurchaseCount   int
 	}
-	
+
 	itemMap := make(map[string]*itemStats)
-	
+
 	for _, tx := range transactions {
 		for _, item := range tx.Items {
 			if stats, exists := itemMap[item.ItemNumber]; exists {
@@ -176,7 +176,7 @@ func (c *Client) GetFrequentItems(ctx context.Context, startDate, endDate string
 			}
 		}
 	}
-	
+
 	// Convert map to slice for sorting
 	var items []struct {
 		ItemNumber      string
@@ -185,7 +185,7 @@ func (c *Client) GetFrequentItems(ctx context.Context, startDate, endDate string
 		TotalSpent      float64
 		PurchaseCount   int
 	}
-	
+
 	for _, stats := range itemMap {
 		items = append(items, struct {
 			ItemNumber      string
@@ -201,7 +201,7 @@ func (c *Client) GetFrequentItems(ctx context.Context, startDate, endDate string
 			PurchaseCount:   stats.PurchaseCount,
 		})
 	}
-	
+
 	// Sort by purchase count (you could also sort by TotalQuantity or TotalSpent)
 	// Simple bubble sort for demonstration
 	for i := 0; i < len(items)-1; i++ {
@@ -211,11 +211,11 @@ func (c *Client) GetFrequentItems(ctx context.Context, startDate, endDate string
 			}
 		}
 	}
-	
+
 	// Return only the requested limit
 	if limit > 0 && limit < len(items) {
 		return items[:limit], nil
 	}
-	
+
 	return items, nil
 }

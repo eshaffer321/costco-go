@@ -65,7 +65,7 @@ func TestGetAllTransactionItems(t *testing.T) {
 			} else if req.Query == ReceiptDetailQuery {
 				barcode := req.Variables["barcode"].(string)
 				documentType := req.Variables["documentType"].(string)
-				
+
 				var items []map[string]interface{}
 				if documentType == "warehouse" {
 					items = []map[string]interface{}{
@@ -130,15 +130,15 @@ func TestGetAllTransactionItems(t *testing.T) {
 
 	transactions, err := client.GetAllTransactionItems(context.Background(), "2025-01-01", "2025-01-31")
 	require.NoError(t, err)
-	
+
 	assert.Len(t, transactions, 2)
-	
+
 	// Check warehouse transaction
 	assert.Equal(t, "12345", transactions[0].TransactionBarcode)
 	assert.Equal(t, 100.50, transactions[0].Total)
 	assert.Len(t, transactions[0].Items, 1)
 	assert.Equal(t, "123", transactions[0].Items[0].ItemNumber)
-	
+
 	// Check gas station transaction
 	assert.Equal(t, "67890", transactions[1].TransactionBarcode)
 	assert.Equal(t, 100.50, transactions[1].Total) // Note: using receipt detail total
@@ -166,7 +166,7 @@ func TestGetFrequentItems(t *testing.T) {
 			},
 		},
 	}
-	
+
 	// Test the frequency calculation logic
 	itemMap := make(map[string]*struct {
 		ItemNumber      string
@@ -175,7 +175,7 @@ func TestGetFrequentItems(t *testing.T) {
 		TotalSpent      float64
 		PurchaseCount   int
 	})
-	
+
 	for _, tx := range transactions {
 		for _, item := range tx.Items {
 			if stats, exists := itemMap[item.ItemNumber]; exists {
@@ -199,7 +199,7 @@ func TestGetFrequentItems(t *testing.T) {
 			}
 		}
 	}
-	
+
 	assert.Len(t, itemMap, 3)
 	assert.Equal(t, 5, itemMap["ITEM1"].TotalQuantity)
 	assert.Equal(t, 25.00, itemMap["ITEM1"].TotalSpent)
@@ -223,13 +223,13 @@ func TestGetSpendingSummary(t *testing.T) {
 			},
 		},
 	}
-	
+
 	summary := make(map[int]struct {
 		Department string
 		Total      float64
 		ItemCount  int
 	})
-	
+
 	for _, tx := range transactions {
 		for _, item := range tx.Items {
 			dept := item.ItemDepartmentNumber
@@ -240,7 +240,7 @@ func TestGetSpendingSummary(t *testing.T) {
 			summary[dept] = current
 		}
 	}
-	
+
 	assert.Len(t, summary, 3)
 	assert.Equal(t, 25.00, summary[1].Total)
 	assert.Equal(t, 3, summary[1].ItemCount)

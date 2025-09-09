@@ -16,13 +16,13 @@ import (
 
 func main() {
 	var (
-		command         = flag.String("cmd", "", "Command: setup, info, orders, receipts, receipt-detail")
-		startDate       = flag.String("start", "", "Start date (YYYY-MM-DD)")
-		endDate         = flag.String("end", "", "End date (YYYY-MM-DD)")
-		barcode         = flag.String("barcode", "", "Receipt barcode (for receipt-detail)")
-		pageNumber      = flag.Int("page", 1, "Page number for orders")
-		pageSize        = flag.Int("size", 10, "Page size for orders")
-		outputJSON      = flag.Bool("json", false, "Output as JSON")
+		command    = flag.String("cmd", "", "Command: setup, info, orders, receipts, receipt-detail")
+		startDate  = flag.String("start", "", "Start date (YYYY-MM-DD)")
+		endDate    = flag.String("end", "", "End date (YYYY-MM-DD)")
+		barcode    = flag.String("barcode", "", "Receipt barcode (for receipt-detail)")
+		pageNumber = flag.Int("page", 1, "Page number for orders")
+		pageSize   = flag.Int("size", 10, "Page size for orders")
+		outputJSON = flag.Bool("json", false, "Output as JSON")
 	)
 
 	flag.Parse()
@@ -45,7 +45,7 @@ func main() {
 	if err != nil {
 		log.Fatalf("Error loading config: %v", err)
 	}
-	
+
 	if storedConfig == nil {
 		log.Fatal("No configuration found. Run 'costco-cli -cmd setup' first")
 	}
@@ -53,7 +53,7 @@ func main() {
 	// Check if we have tokens, if not we need password
 	tokens, _ := costco.LoadTokens()
 	password := ""
-	
+
 	if tokens == nil || time.Now().After(tokens.RefreshTokenExpiresAt) {
 		// Need to authenticate - get password
 		fmt.Print("Password: ")
@@ -123,7 +123,7 @@ func getOrders(ctx context.Context, client *costco.Client, startDate, endDate st
 		fmt.Printf("  Status: %s\n", order.Status)
 		fmt.Printf("  Total: $%.2f\n", order.OrderTotal)
 		fmt.Printf("  Warehouse: %s\n", order.WarehouseNumber)
-		
+
 		if len(order.OrderLineItems) > 0 {
 			fmt.Printf("  Items: %d\n", len(order.OrderLineItems))
 			for i, item := range order.OrderLineItems {
@@ -160,7 +160,7 @@ func getReceipts(ctx context.Context, client *costco.Client, startDate, endDate 
 	}
 
 	fmt.Printf("Receipts (%s to %s)\n", startDate, endDate)
-	fmt.Printf("In-Warehouse: %d, Gas Station: %d, Car Wash: %d\n", 
+	fmt.Printf("In-Warehouse: %d, Gas Station: %d, Car Wash: %d\n",
 		receipts.InWarehouse, receipts.GasStation, receipts.CarWash)
 	fmt.Println("=" + string(make([]byte, 80)))
 
@@ -192,8 +192,8 @@ func getReceiptDetail(ctx context.Context, client *costco.Client, barcode string
 	fmt.Println("=" + string(make([]byte, 80)))
 	fmt.Printf("Date: %s\n", receipt.TransactionDateTime)
 	fmt.Printf("Warehouse: %s (#%d)\n", receipt.WarehouseName, receipt.WarehouseNumber)
-	fmt.Printf("Address: %s, %s, %s %s\n", 
-		receipt.WarehouseAddress1, receipt.WarehouseCity, 
+	fmt.Printf("Address: %s, %s, %s %s\n",
+		receipt.WarehouseAddress1, receipt.WarehouseCity,
 		receipt.WarehouseState, receipt.WarehousePostalCode)
 	fmt.Printf("Barcode: %s\n", receipt.TransactionBarcode)
 	fmt.Printf("Member: %s\n", receipt.MembershipNumber)
@@ -217,7 +217,7 @@ func getReceiptDetail(ctx context.Context, client *costco.Client, barcode string
 	if len(receipt.TenderArray) > 0 {
 		fmt.Println("\nPayment:")
 		for _, tender := range receipt.TenderArray {
-			fmt.Printf("  %s (%s): $%.2f\n", 
+			fmt.Printf("  %s (%s): $%.2f\n",
 				tender.TenderDescription, tender.DisplayAccountNumber, tender.AmountTender)
 		}
 	}

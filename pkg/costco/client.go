@@ -18,25 +18,25 @@ import (
 // Constants moved to constants.go for better organization
 
 type Client struct {
-	httpClient      *http.Client
-	config          Config
-	token           *TokenResponse
-	tokenExpiry     time.Time
-	mu              sync.RWMutex
+	httpClient  *http.Client
+	config      Config
+	token       *TokenResponse
+	tokenExpiry time.Time
+	mu          sync.RWMutex
 }
 
 func NewClient(config Config) *Client {
 	if config.TokenRefreshBuffer == 0 {
 		config.TokenRefreshBuffer = 5 * time.Minute
 	}
-	
+
 	client := &Client{
 		httpClient: &http.Client{
 			Timeout: 30 * time.Second,
 		},
 		config: config,
 	}
-	
+
 	// Try to load existing tokens
 	if tokens, err := LoadTokens(); err == nil && tokens != nil {
 		client.token = &TokenResponse{
@@ -45,7 +45,7 @@ func NewClient(config Config) *Client {
 		}
 		client.tokenExpiry = tokens.TokenExpiry
 	}
-	
+
 	return client
 }
 
@@ -273,7 +273,7 @@ func (c *Client) executeGraphQL(ctx context.Context, query string, variables map
 
 	var graphQLResp GraphQLResponse
 	graphQLResp.Data = result
-	
+
 	if err := json.NewDecoder(resp.Body).Decode(&graphQLResp); err != nil {
 		return fmt.Errorf("decoding response: %w", err)
 	}
@@ -326,7 +326,15 @@ func (c *Client) GetReceipts(ctx context.Context, startDate, endDate, documentTy
 
 func generateUUID() string {
 	b := make([]byte, 16)
-	rand.Read(b)
+	if _, err := rand.Read(b); err != nil {
+		// Fallback to timestamp-based UUID if random fails
+		return fmt.Sprintf("%d-%d-%d-%d-%d", 
+			time.Now().Unix(), 
+			time.Now().UnixNano()%1000000,
+			time.Now().UnixNano()%100000,
+			time.Now().UnixNano()%10000,
+			time.Now().UnixNano()%1000)
+	}
 	return fmt.Sprintf("%x-%x-%x-%x-%x", b[0:4], b[4:6], b[6:8], b[8:10], b[10:])
 }
 
