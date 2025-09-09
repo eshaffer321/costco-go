@@ -1,0 +1,161 @@
+package main
+
+import (
+	"context"
+	"fmt"
+	"log"
+
+	"github.com/costco-go/pkg/costco"
+)
+
+func main() {
+	// Load stored config
+	storedConfig, err := costco.LoadConfig()
+	if err != nil || storedConfig == nil {
+		log.Fatal("No configuration found. Run 'costco-cli -cmd setup' first")
+	}
+
+	// Create client (will use stored tokens if available)
+	client := costco.NewClient(costco.Config{
+		Email:           storedConfig.Email,
+		Password:        "", // Will use refresh token from storage
+		WarehouseNumber: storedConfig.WarehouseNumber,
+	})
+
+	ctx := context.Background()
+
+	fmt.Println("=== Testing Costco Client Capabilities ===\n")
+
+	// 1. Get Receipts (these have transaction barcodes)
+	fmt.Println("1. Getting recent receipts with transaction barcodes...")
+	startDate := "11/01/2024"
+	endDate := "1/09/2025"
+	
+	receipts, err := client.GetReceipts(ctx, startDate, endDate, "all", "all")
+	if err != nil {
+		log.Printf("Error getting receipts: %v\n", err)
+		return
+	}
+
+	fmt.Printf("✓ Found %d receipts\n", len(receipts.Receipts))
+	fmt.Printf("  - In-Warehouse: %d\n", receipts.InWarehouse)
+	fmt.Printf("  - Gas Station: %d\n\n", receipts.GasStation)
+
+	// Show first few transaction barcodes
+	fmt.Println("Transaction Barcodes found:")
+	for i, receipt := range receipts.Receipts {
+		if i >= 5 {
+			fmt.Printf("  ... and %d more\n", len(receipts.Receipts)-5)
+			break
+		}
+		fmt.Printf("  %s - %s - $%.2f (%d items)\n", 
+			receipt.TransactionBarcode,
+			receipt.TransactionDateTime,
+			receipt.Total,
+			receipt.TotalItemCount)
+	}
+
+	// 2. Get detailed items for a specific transaction
+	if len(receipts.Receipts) > 0 {
+		fmt.Printf("\n2. Getting detailed items for transaction: %s\n", receipts.Receipts[0].TransactionBarcode)
+		
+		// Determine document type based on receipt type
+		documentType := "warehouse"
+		if receipts.Receipts[0].ReceiptType == "Gas Station" || receipts.Receipts[0].DocumentType == "fuel" {
+			documentType = "fuel"
+		}
+		
+		detail, err := client.GetReceiptDetail(ctx, receipts.Receipts[0].TransactionBarcode, documentType)
+		if err != nil {
+			log.Printf("Error getting receipt detail: %v\n", err)
+		} else {
+			fmt.Printf("✓ Retrieved %d items from %s\n", len(detail.ItemArray), detail.WarehouseName)
+			fmt.Println("\nItems purchased:")
+			for i, item := range detail.ItemArray {
+				if i >= 10 {
+					fmt.Printf("  ... and %d more items\n", len(detail.ItemArray)-10)
+					break
+				}
+				fmt.Printf("  %s - %s %s - Qty: %d - $%.2f\n",
+					item.ItemNumber,
+					item.ItemDescription01,
+					item.ItemDescription02,
+					item.Unit,
+					item.Amount)
+			}
+			
+			fmt.Printf("\nTotal: $%.2f (Subtotal: $%.2f + Tax: $%.2f)\n", 
+				detail.Total, detail.SubTotal, detail.Taxes)
+		}
+	}
+
+	// 3. Get online orders (different from receipts)
+	fmt.Println("\n3. Getting online orders...")
+	orders, err := client.GetOnlineOrders(ctx, "2024-11-01", "2025-01-09", 1, 10)
+	if err != nil {
+		log.Printf("Error getting orders: %v\n", err)
+	} else {
+		fmt.Printf("✓ Found %d total online orders\n", orders.TotalNumberOfRecords)
+		for i, order := range orders.BCOrders {
+			if i >= 3 {
+				break
+			}
+			fmt.Printf("  Order %s - $%.2f - %s\n", 
+				order.OrderNumber, order.OrderTotal, order.Status)
+		}
+	}
+
+	// 4. Demonstrate getting ALL items from ALL transactions
+	fmt.Println("\n4. Getting all items from all recent transactions...")
+	allItems := []costco.ReceiptItem{}
+	transactionCount := 0
+	
+	for _, receipt := range receipts.Receipts {
+		if transactionCount >= 10 { // Limit to 10 transactions for demo
+			break
+		}
+		
+		// Determine document type based on receipt type
+		documentType := "warehouse"
+		if receipt.ReceiptType == "Gas Station" || receipt.DocumentType == "fuel" {
+			documentType = "fuel"
+		}
+		
+		detail, err := client.GetReceiptDetail(ctx, receipt.TransactionBarcode, documentType)
+		if err != nil {
+			fmt.Printf("  ⚠ Skipping %s (type: %s): %v\n", receipt.TransactionBarcode, documentType, err)
+			continue
+		}
+		
+		allItems = append(allItems, detail.ItemArray...)
+		transactionCount++
+		fmt.Printf("  ✓ Added %d items from %s\n", len(detail.ItemArray), receipt.TransactionBarcode)
+	}
+	
+	fmt.Printf("\n✓ Total items collected: %d from %d transactions\n", len(allItems), transactionCount)
+	
+	// Show item frequency (what you buy most)
+	fmt.Println("\n5. Item frequency analysis:")
+	itemFreq := make(map[string]int)
+	itemDetails := make(map[string]costco.ReceiptItem)
+	
+	for _, item := range allItems {
+		key := item.ItemNumber
+		itemFreq[key] += item.Unit
+		if _, exists := itemDetails[key]; !exists {
+			itemDetails[key] = item
+		}
+	}
+	
+	fmt.Println("Most frequently purchased items:")
+	count := 0
+	for itemNum, qty := range itemFreq {
+		if count >= 10 {
+			break
+		}
+		item := itemDetails[itemNum]
+		fmt.Printf("  %s - %s - Purchased %d times\n", 
+			itemNum, item.ItemDescription01, qty)
+		count++
+	}
+}

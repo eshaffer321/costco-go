@@ -1,0 +1,45 @@
+# Binaries
+costco-cli
+*.exe
+*.dll
+*.so
+*.dylib
+
+# Test binaries
+*.test
+
+# Output of go coverage
+*.out
+
+# Dependency directories
+vendor/
+
+# Go workspace files
+go.work
+go.work.sum
+
+# IDE files
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Personal test files that might contain tokens
+test*.go
+test_*.go
+
+# Config directory (contains personal credentials)
+.costco/
+
+# Environment files
+.env
+.env.local
+
+# Binary outputs
+bin/
+dist/

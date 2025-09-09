@@ -1,0 +1,110 @@
+package main
+
+import (
+	"context"
+	"fmt"
+	"log"
+
+	"github.com/costco-go/pkg/costco"
+)
+
+func main() {
+	// Load config
+	config, _ := costco.LoadConfig()
+	if config == nil {
+		log.Fatal("Run 'costco-cli -cmd setup' first")
+	}
+
+	client := costco.NewClient(costco.Config{
+		Email:           config.Email,
+		Password:        "",
+		WarehouseNumber: config.WarehouseNumber,
+	})
+
+	ctx := context.Background()
+
+	// Example 1: Get all items purchased in last 3 months
+	fmt.Println("=== Getting All Your Costco Purchases ===\n")
+	
+	transactions, err := client.GetAllTransactionItems(ctx, "10/01/2024", "1/09/2025")
+	if err != nil {
+		log.Printf("Error: %v\n", err)
+		return
+	}
+
+	fmt.Printf("Found %d transactions\n\n", len(transactions))
+	
+	// Calculate totals
+	grandTotal := 0.0
+	totalItems := 0
+	
+	for _, tx := range transactions {
+		grandTotal += tx.Total
+		totalItems += len(tx.Items)
+		
+		fmt.Printf("📅 %s - %s\n", tx.TransactionDate.Format("Jan 02, 2006"), tx.WarehouseName)
+		fmt.Printf("   Barcode: %s\n", tx.TransactionBarcode)
+		fmt.Printf("   Total: $%.2f (%d items)\n", tx.Total, len(tx.Items))
+		
+		// Show first few items
+		for i, item := range tx.Items {
+			if i >= 3 {
+				fmt.Printf("   ... and %d more items\n", len(tx.Items)-3)
+				break
+			}
+			fmt.Printf("   • %s - %s (Qty: %d) - $%.2f\n",
+				item.ItemNumber, item.ItemDescription01, item.Unit, item.Amount)
+		}
+		fmt.Println()
+	}
+	
+	fmt.Printf("📊 Summary:\n")
+	fmt.Printf("   Total Spent: $%.2f\n", grandTotal)
+	fmt.Printf("   Total Items: %d\n", totalItems)
+	fmt.Printf("   Average per Transaction: $%.2f\n", grandTotal/float64(len(transactions)))
+	
+	// Example 2: Find your most purchased items
+	fmt.Println("\n=== Your Top 10 Most Purchased Items ===\n")
+	
+	frequent, err := client.GetFrequentItems(ctx, "10/01/2024", "1/09/2025", 10)
+	if err != nil {
+		log.Printf("Error: %v\n", err)
+		return
+	}
+	
+	for i, item := range frequent {
+		fmt.Printf("%2d. %s - %s\n", i+1, item.ItemNumber, item.ItemDescription)
+		fmt.Printf("    Bought %d times (Qty: %d) - Total: $%.2f\n",
+			item.PurchaseCount, item.TotalQuantity, item.TotalSpent)
+	}
+	
+	// Example 3: Spending by department
+	fmt.Println("\n=== Spending by Department ===\n")
+	
+	summary, err := client.GetSpendingSummary(ctx, "10/01/2024", "1/09/2025")
+	if err != nil {
+		log.Printf("Error: %v\n", err)
+		return
+	}
+	
+	for dept, data := range summary {
+		if data.Total > 0 {
+			fmt.Printf("Department %d: $%.2f (%d items)\n", dept, data.Total, data.ItemCount)
+		}
+	}
+	
+	// Example 4: Track price history of a specific item
+	if len(frequent) > 0 {
+		fmt.Printf("\n=== Price History for %s ===\n\n", frequent[0].ItemDescription)
+		
+		history, err := client.GetItemHistory(ctx, frequent[0].ItemNumber, "10/01/2024", "1/09/2025")
+		if err != nil {
+			log.Printf("Error: %v\n", err)
+			return
+		}
+		
+		for _, purchase := range history {
+			fmt.Printf("%s - Qty: %d - $%.2f\n", purchase.Date, purchase.Quantity, purchase.Price)
+		}
+	}
+}

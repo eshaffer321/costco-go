@@ -1,0 +1,180 @@
+# Costco Go Client
+
+A Go client library and CLI for accessing Costco order history and receipt data via their GraphQL API.
+
+## Features
+
+- OAuth2 authentication with automatic token refresh
+- Get online order history
+- Get warehouse receipts
+- Get detailed receipt information with line items
+- Command-line interface
+- JSON output support
+- Test-driven development with comprehensive test coverage
+
+## Installation
+
+```bash
+go get github.com/costco-go/pkg/costco
+```
+
+## Library Usage
+
+```go
+package main
+
+import (
+    "context"
+    "fmt"
+    "log"
+    "time"
+    
+    "github.com/costco-go/pkg/costco"
+)
+
+func main() {
+    config := costco.Config{
+        Email:              "your-email@example.com",
+        Password:           "your-password",
+        WarehouseNumber:    "847", // Your local warehouse number
+        TokenRefreshBuffer: 5 * time.Minute,
+    }
+    
+    client := costco.NewClient(config)
+    ctx := context.Background()
+    
+    // Get online orders
+    orders, err := client.GetOnlineOrders(ctx, "2025-01-01", "2025-01-31", 1, 10)
+    if err != nil {
+        log.Fatal(err)
+    }
+    
+    for _, order := range orders.BCOrders {
+        fmt.Printf("Order %s: $%.2f\n", order.OrderNumber, order.OrderTotal)
+    }
+    
+    // Get receipts
+    receipts, err := client.GetReceipts(ctx, "1/01/2025", "1/31/2025", "all", "all")
+    if err != nil {
+        log.Fatal(err)
+    }
+    
+    for _, receipt := range receipts.Receipts {
+        fmt.Printf("Receipt from %s: $%.2f\n", receipt.TransactionDateTime, receipt.Total)
+    }
+    
+    // Get detailed receipt
+    receipt, err := client.GetReceiptDetail(ctx, "21134300501862509051323", "warehouse")
+    if err != nil {
+        log.Fatal(err)
+    }
+    
+    fmt.Printf("Receipt total: $%.2f with %d items\n", receipt.Total, receipt.TotalItemCount)
+}
+```
+
+## CLI Usage
+
+### Build the CLI
+
+```bash
+go build -o costco-cli cmd/costco-cli/main.go
+```
+
+### Set credentials via environment variables
+
+```bash
+export COSTCO_EMAIL="your-email@example.com"
+export COSTCO_PASSWORD="your-password"
+export COSTCO_WAREHOUSE="847"  # Optional, defaults to 847
+```
+
+### Get online orders
+
+```bash
+# Get orders from last 3 months (default)
+./costco-cli -cmd orders
+
+# Get orders for specific date range
+./costco-cli -cmd orders -start 2025-01-01 -end 2025-01-31
+
+# Get orders with pagination
+./costco-cli -cmd orders -page 2 -size 20
+
+# Output as JSON
+./costco-cli -cmd orders -json
+```
+
+### Get receipts
+
+```bash
+# Get all receipts from last 3 months
+./costco-cli -cmd receipts
+
+# Get receipts for specific date range
+./costco-cli -cmd receipts -start 2025-01-01 -end 2025-01-31
+
+# Output as JSON
+./costco-cli -cmd receipts -json
+```
+
+### Get receipt details
+
+```bash
+# Get detailed receipt with all line items
+./costco-cli -cmd receipt-detail -barcode 21134300501862509051323
+
+# Output as JSON
+./costco-cli -cmd receipt-detail -barcode 21134300501862509051323 -json
+```
+
+### CLI Flags
+
+- `-email`: Costco account email (overrides COSTCO_EMAIL env var)
+- `-password`: Costco account password (overrides COSTCO_PASSWORD env var)
+- `-warehouse`: Warehouse number (overrides COSTCO_WAREHOUSE env var, default: 847)
+- `-cmd`: Command to run: `orders`, `receipts`, or `receipt-detail`
+- `-start`: Start date in YYYY-MM-DD format
+- `-end`: End date in YYYY-MM-DD format
+- `-barcode`: Receipt barcode (required for receipt-detail command)
+- `-page`: Page number for orders (default: 1)
+- `-size`: Page size for orders (default: 10)
+- `-json`: Output results as JSON
+
+## Running Tests
+
+```bash
+go test ./pkg/costco -v
+```
+
+## API Details
+
+The client uses Costco's OAuth2 authentication flow and GraphQL API:
+
+- **Auth endpoint**: `https://signin.costco.com/.../oauth2/v2.0/token`
+- **GraphQL endpoint**: `https://ecom-api.costco.com/ebusiness/order/v1/orders/graphql`
+- **Auth header**: `costco-x-authorization: Bearer {id_token}`
+
+The client handles:
+- Initial authentication with email/password
+- Automatic token refresh before expiry
+- Thread-safe token management
+- GraphQL query construction and response parsing
+
+## Data Structures
+
+### Online Orders
+- Order header information (date, total, status)
+- Line items with shipping details
+- Shipment tracking information
+
+### Receipts
+- Transaction details (date, warehouse, total)
+- Complete line item details with prices
+- Tax breakdown
+- Payment information
+- Membership number
+
+## License
+
+MIT
