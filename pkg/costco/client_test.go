@@ -327,11 +327,12 @@ type testTransport struct {
 func (t *testTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 	// Replace the host with our test server
 	testURL := t.baseURL
-	if req.URL.Path == "/e0714dd4-784d-46d6-a278-3e29553483eb/b2c_1a_sso_wcs_signup_signin_157/oauth2/v2.0/token" {
+	switch req.URL.Path {
+	case "/e0714dd4-784d-46d6-a278-3e29553483eb/b2c_1a_sso_wcs_signup_signin_157/oauth2/v2.0/token":
 		testURL += "/oauth2/v2.0/token"
-	} else if req.URL.Path == "/ebusiness/order/v1/orders/graphql" {
+	case "/ebusiness/order/v1/orders/graphql":
 		testURL += "/graphql"
-	} else {
+	default:
 		testURL += req.URL.Path
 	}
 
