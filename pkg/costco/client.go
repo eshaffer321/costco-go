@@ -328,8 +328,8 @@ func generateUUID() string {
 	b := make([]byte, 16)
 	if _, err := rand.Read(b); err != nil {
 		// Fallback to timestamp-based UUID if random fails
-		return fmt.Sprintf("%d-%d-%d-%d-%d", 
-			time.Now().Unix(), 
+		return fmt.Sprintf("%d-%d-%d-%d-%d",
+			time.Now().Unix(),
 			time.Now().UnixNano()%1000000,
 			time.Now().UnixNano()%100000,
 			time.Now().UnixNano()%10000,
