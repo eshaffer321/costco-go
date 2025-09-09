@@ -11,7 +11,7 @@ const (
 	ClientID         = "a3a5186b-7c89-4b4c-93a8-dd604e930757" // Public OAuth2 client ID
 	ClientIdentifier = "481b1aec-aa3b-454b-b81b-48187e28f205" // Public API client identifier
 	WCSClientID      = "4900eb1f-0c10-4bd9-99c3-c59e6c1ecebf" // Public WCS client ID
-	Scope            = "openid profile offline_access"
+	Scope            = "openid offline_access"
 	GrantType        = "password"
 	RefreshGrantType = "refresh_token"
 	ResponseType     = "token id_token"
