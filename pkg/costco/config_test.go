@@ -13,32 +13,32 @@ func TestConfigPathOverride(t *testing.T) {
 	// Test that environment variable overrides the default path
 	cleanup := SetupTestConfig(t)
 	defer cleanup()
-	
+
 	// Get the config path - should be the temp directory
 	configPath, err := getConfigPath()
 	require.NoError(t, err)
-	
+
 	// Should not be the user's home directory
 	home, _ := os.UserHomeDir()
 	assert.NotEqual(t, filepath.Join(home, configDir), configPath)
-	
+
 	// Should be the test directory
 	assert.Contains(t, configPath, "costco-test")
-	
+
 	// Test that we can save and load tokens without affecting real config
 	testTokens := &StoredTokens{
 		IDToken:      "test-token",
 		RefreshToken: "test-refresh",
 	}
-	
+
 	err = SaveTokens(testTokens)
 	require.NoError(t, err)
-	
+
 	// Verify the file was created in the test directory
 	tokenPath := filepath.Join(configPath, tokenFile)
 	_, err = os.Stat(tokenPath)
 	assert.NoError(t, err)
-	
+
 	// Load the tokens back
 	loadedTokens, err := LoadTokens()
 	require.NoError(t, err)
@@ -65,10 +65,10 @@ func TestConfigPathDefault(t *testing.T) {
 			os.Setenv("COSTCO_TEST_CONFIG_PATH", oldValue)
 		}
 	}()
-	
+
 	configPath, err := getConfigPath()
 	require.NoError(t, err)
-	
+
 	home, _ := os.UserHomeDir()
 	expectedPath := filepath.Join(home, configDir)
 	assert.Equal(t, expectedPath, configPath)

@@ -32,7 +32,7 @@ func getConfigPath() (string, error) {
 	if testPath := os.Getenv("COSTCO_TEST_CONFIG_PATH"); testPath != "" {
 		return testPath, nil
 	}
-	
+
 	home, err := os.UserHomeDir()
 	if err != nil {
 		return "", err
