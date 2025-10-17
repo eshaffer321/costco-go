@@ -15,7 +15,7 @@ import (
 func TestGetAllTransactionItems(t *testing.T) {
 	cleanup := SetupTestConfig(t)
 	defer cleanup()
-	
+
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/oauth2/v2.0/token" {
 			resp := TokenResponse{

@@ -139,9 +139,10 @@ func TestGetReceiptsArrayResponse(t *testing.T) {
 
 // TestScopeConfiguration tests that the scope is correctly configured
 func TestScopeConfiguration(t *testing.T) {
-	// Verify the scope doesn't include 'profile' which causes Azure AD B2C errors
-	assert.Equal(t, "openid offline_access", Scope)
-	assert.NotContains(t, Scope, "profile", "Scope should not contain 'profile' to avoid Azure AD B2C AADB2C90055 error")
+	// Verify the scope matches what the Costco web application uses
+	// The scope includes 'profile' which allows tokens from both web and CLI to work interchangeably
+	assert.Equal(t, "openid profile offline_access", Scope)
+	assert.Contains(t, Scope, "profile", "Scope should contain 'profile' to match Costco web application")
 }
 
 // TestEmptyArrayResponse tests handling of empty array responses

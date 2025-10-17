@@ -33,7 +33,7 @@ func TestNewClient(t *testing.T) {
 func TestAuthenticate(t *testing.T) {
 	cleanup := SetupTestConfig(t)
 	defer cleanup()
-	
+
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		assert.Equal(t, "/oauth2/v2.0/token", r.URL.Path)
 		assert.Equal(t, "POST", r.Method)
@@ -85,7 +85,7 @@ func TestAuthenticate(t *testing.T) {
 func TestRefreshToken(t *testing.T) {
 	cleanup := SetupTestConfig(t)
 	defer cleanup()
-	
+
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		err := r.ParseForm()
 		require.NoError(t, err)
@@ -136,7 +136,7 @@ func TestRefreshToken(t *testing.T) {
 func TestGetOnlineOrders(t *testing.T) {
 	cleanup := SetupTestConfig(t)
 	defer cleanup()
-	
+
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/oauth2/v2.0/token" {
 			resp := TokenResponse{
@@ -226,7 +226,7 @@ func TestGetOnlineOrders(t *testing.T) {
 func TestGetReceiptDetail(t *testing.T) {
 	cleanup := SetupTestConfig(t)
 	defer cleanup()
-	
+
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/oauth2/v2.0/token" {
 			resp := TokenResponse{
