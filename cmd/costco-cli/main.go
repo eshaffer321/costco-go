@@ -10,8 +10,9 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/costco-go/pkg/costco"
 	"golang.org/x/term"
+
+	"github.com/costco-go/pkg/costco"
 )
 
 func main() {

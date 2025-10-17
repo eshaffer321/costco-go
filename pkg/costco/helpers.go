@@ -3,6 +3,7 @@ package costco
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"time"
 )
 
@@ -18,6 +19,10 @@ type TransactionWithItems struct {
 
 // GetAllTransactionItems fetches all receipts in a date range and retrieves full item details for each
 func (c *Client) GetAllTransactionItems(ctx context.Context, startDate, endDate string) ([]TransactionWithItems, error) {
+	c.getLogger().Info("fetching all transaction items",
+		slog.String("start_date", startDate),
+		slog.String("end_date", endDate))
+
 	// First get all receipts
 	receipts, err := c.GetReceipts(ctx, startDate, endDate, "all", "all")
 	if err != nil {
@@ -42,8 +47,10 @@ func (c *Client) GetAllTransactionItems(ctx context.Context, startDate, endDate 
 		// Get full receipt details including all items
 		detail, err := c.GetReceiptDetail(ctx, receipt.TransactionBarcode, documentType)
 		if err != nil {
-			// Log but continue with other receipts
-			fmt.Printf("Warning: Could not get details for %s (type: %s): %v\n", receipt.TransactionBarcode, documentType, err)
+			c.getLogger().Warn("failed to get receipt details",
+				slog.String("barcode", receipt.TransactionBarcode),
+				slog.String("document_type", documentType),
+				slog.String("error", err.Error()))
 			continue
 		}
 
