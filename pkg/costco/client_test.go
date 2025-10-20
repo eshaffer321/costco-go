@@ -1,12 +1,16 @@
 package costco
 
 import (
+	"bytes"
 	"context"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"strings"
 	"testing"
 	"time"
 
@@ -357,4 +361,231 @@ func (t *testTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 
 	newReq.Header = req.Header
 	return http.DefaultTransport.RoundTrip(newReq)
+}
+
+func TestClientWithLogger(t *testing.T) {
+	cleanup := SetupTestConfig(t)
+	defer cleanup()
+
+	// Create a buffer to capture log output
+	var buf bytes.Buffer
+	handler := slog.NewTextHandler(&buf, &slog.HandlerOptions{
+		Level: slog.LevelDebug,
+	})
+	logger := slog.New(handler)
+
+	// Create server that returns auth token
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/oauth2/v2.0/token" {
+			resp := TokenResponse{
+				IDToken:               generateTestJWT(time.Now().Add(1 * time.Hour).Unix()),
+				TokenType:             "Bearer",
+				RefreshToken:          "test-refresh-token",
+				RefreshTokenExpiresIn: 7776000,
+			}
+			w.Header().Set("Content-Type", "application/json")
+			json.NewEncoder(w).Encode(resp)
+			return
+		}
+
+		if r.URL.Path == "/graphql" {
+			resp := map[string]interface{}{
+				"data": map[string]interface{}{
+					"getOnlineOrders": []map[string]interface{}{
+						{
+							"pageNumber":           1,
+							"pageSize":             10,
+							"totalNumberOfRecords": 0,
+							"bcOrders":             []interface{}{},
+						},
+					},
+				},
+			}
+			w.Header().Set("Content-Type", "application/json")
+			json.NewEncoder(w).Encode(resp)
+		}
+	}))
+	defer server.Close()
+
+	// Create client with custom logger
+	config := Config{
+		Email:              "test@example.com",
+		Password:           "password123",
+		WarehouseNumber:    "847",
+		TokenRefreshBuffer: 5 * time.Minute,
+		Logger:             logger,
+	}
+
+	client := NewClient(config)
+	client.httpClient = &http.Client{
+		Transport: &testTransport{
+			baseURL: server.URL,
+		},
+	}
+
+	// Perform an operation that should log
+	_, _ = client.GetOnlineOrders(context.Background(), "2025-01-01", "2025-01-31", 1, 10)
+
+	// Verify logs were captured
+	output := buf.String()
+	assert.NotEmpty(t, output, "Expected log output to be captured")
+	assert.Contains(t, output, "fetching online orders", "Expected 'fetching online orders' log message")
+	assert.Contains(t, output, "client=costco", "Expected 'client=costco' attribute in logs")
+}
+
+func TestClientWithoutLogger(t *testing.T) {
+	cleanup := SetupTestConfig(t)
+	defer cleanup()
+
+	// Create server that returns auth token
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/oauth2/v2.0/token" {
+			resp := TokenResponse{
+				IDToken:               generateTestJWT(time.Now().Add(1 * time.Hour).Unix()),
+				TokenType:             "Bearer",
+				RefreshToken:          "test-refresh-token",
+				RefreshTokenExpiresIn: 7776000,
+			}
+			w.Header().Set("Content-Type", "application/json")
+			json.NewEncoder(w).Encode(resp)
+			return
+		}
+
+		if r.URL.Path == "/graphql" {
+			resp := map[string]interface{}{
+				"data": map[string]interface{}{
+					"getOnlineOrders": []map[string]interface{}{
+						{
+							"pageNumber":           1,
+							"pageSize":             10,
+							"totalNumberOfRecords": 0,
+							"bcOrders":             []interface{}{},
+						},
+					},
+				},
+			}
+			w.Header().Set("Content-Type", "application/json")
+			json.NewEncoder(w).Encode(resp)
+		}
+	}))
+	defer server.Close()
+
+	// Capture stdout/stderr to ensure nothing is printed
+	oldStdout := os.Stdout
+	oldStderr := os.Stderr
+	r, w, _ := os.Pipe()
+	os.Stdout = w
+	os.Stderr = w
+
+	// Create client without logger (nil logger)
+	config := Config{
+		Email:              "test@example.com",
+		Password:           "password123",
+		WarehouseNumber:    "847",
+		TokenRefreshBuffer: 5 * time.Minute,
+		Logger:             nil, // Explicitly nil
+	}
+
+	client := NewClient(config)
+	client.httpClient = &http.Client{
+		Transport: &testTransport{
+			baseURL: server.URL,
+		},
+	}
+
+	// Perform an operation that would normally log
+	_, err := client.GetOnlineOrders(context.Background(), "2025-01-01", "2025-01-31", 1, 10)
+
+	// Restore stdout/stderr
+	w.Close()
+	os.Stdout = oldStdout
+	os.Stderr = oldStderr
+
+	// Read captured output
+	var buf bytes.Buffer
+	buf.ReadFrom(r)
+	output := buf.String()
+
+	// Verify no panics and successful operation
+	assert.NoError(t, err, "Operation should succeed with nil logger")
+
+	// Verify no output to stdout/stderr
+	assert.Empty(t, output, "No log output should be printed to stdout/stderr with nil logger")
+}
+
+func TestClientLoggerWithJSON(t *testing.T) {
+	cleanup := SetupTestConfig(t)
+	defer cleanup()
+
+	// Create a buffer to capture JSON log output
+	var buf bytes.Buffer
+	handler := slog.NewJSONHandler(&buf, &slog.HandlerOptions{
+		Level: slog.LevelInfo,
+	})
+	logger := slog.New(handler)
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/oauth2/v2.0/token" {
+			resp := TokenResponse{
+				IDToken:               generateTestJWT(time.Now().Add(1 * time.Hour).Unix()),
+				TokenType:             "Bearer",
+				RefreshToken:          "test-refresh-token",
+				RefreshTokenExpiresIn: 7776000,
+			}
+			w.Header().Set("Content-Type", "application/json")
+			json.NewEncoder(w).Encode(resp)
+			return
+		}
+
+		if r.URL.Path == "/graphql" {
+			resp := map[string]interface{}{
+				"data": map[string]interface{}{
+					"getOnlineOrders": []map[string]interface{}{
+						{
+							"pageNumber":           1,
+							"pageSize":             10,
+							"totalNumberOfRecords": 0,
+							"bcOrders":             []interface{}{},
+						},
+					},
+				},
+			}
+			w.Header().Set("Content-Type", "application/json")
+			json.NewEncoder(w).Encode(resp)
+		}
+	}))
+	defer server.Close()
+
+	config := Config{
+		Email:              "test@example.com",
+		Password:           "password123",
+		WarehouseNumber:    "847",
+		TokenRefreshBuffer: 5 * time.Minute,
+		Logger:             logger,
+	}
+
+	client := NewClient(config)
+	client.httpClient = &http.Client{
+		Transport: &testTransport{
+			baseURL: server.URL,
+		},
+	}
+
+	_, _ = client.GetOnlineOrders(context.Background(), "2025-01-01", "2025-01-31", 1, 10)
+
+	output := buf.String()
+	assert.NotEmpty(t, output, "Expected JSON log output")
+
+	// Parse each line as JSON to verify it's valid JSON
+	lines := strings.Split(strings.TrimSpace(output), "\n")
+	for _, line := range lines {
+		if line == "" {
+			continue
+		}
+		var logEntry map[string]interface{}
+		err := json.Unmarshal([]byte(line), &logEntry)
+		assert.NoError(t, err, "Each log line should be valid JSON")
+		assert.Contains(t, logEntry, "client", "Log entry should contain 'client' field")
+		assert.Equal(t, "costco", logEntry["client"], "Client field should be 'costco'")
+	}
 }

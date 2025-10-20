@@ -27,12 +27,13 @@ type Client struct {
 	logger      *slog.Logger
 }
 
-// getLogger returns the client's logger or a default logger if none is set
+// getLogger returns the client's logger or a no-op logger if none is set
 func (c *Client) getLogger() *slog.Logger {
 	if c.logger != nil {
 		return c.logger
 	}
-	return slog.Default()
+	// Return a no-op logger that discards all output
+	return slog.New(slog.NewTextHandler(io.Discard, nil))
 }
 
 func NewClient(config Config) *Client {
@@ -40,10 +41,11 @@ func NewClient(config Config) *Client {
 		config.TokenRefreshBuffer = 5 * time.Minute
 	}
 
-	// Initialize logger with default if not provided
+	// Initialize logger with no-op logger if not provided
 	logger := config.Logger
 	if logger == nil {
-		logger = slog.Default()
+		// Use a no-op logger that discards all output
+		logger = slog.New(slog.NewTextHandler(io.Discard, nil))
 	}
 	// Add "client=costco" attribute to all log messages
 	logger = logger.With(slog.String("client", "costco"))
@@ -336,7 +338,7 @@ func (c *Client) executeGraphQL(ctx context.Context, query string, variables map
 	graphQLResp.Data = result
 
 	if err := json.NewDecoder(resp.Body).Decode(&graphQLResp); err != nil {
-		c.getLogger().Error("failed to decode graphql response", slog.String("error", err.Error()))
+		c.getLogger().Debug("failed to decode graphql response", slog.String("error", err.Error()))
 		return fmt.Errorf("decoding response: %w", err)
 	}
 
@@ -407,7 +409,9 @@ func (c *Client) GetReceipts(ctx context.Context, startDate, endDate, documentTy
 
 	if err := c.executeGraphQL(ctx, ReceiptsQuery, variables, &resultArray); err != nil {
 		// If array fails, try as object (backward compatibility)
-		c.getLogger().Warn("failed to decode receipts as array, trying object format")
+		c.getLogger().Warn("🚨 ARRAY FORMAT FAILED - attempting object format fallback",
+			slog.String("array_error", err.Error()),
+			slog.String("document_type", documentType))
 		var resultObject struct {
 			ReceiptsWithCounts ReceiptsWithCountsResponse `json:"receiptsWithCounts"`
 		}
@@ -415,7 +419,7 @@ func (c *Client) GetReceipts(ctx context.Context, startDate, endDate, documentTy
 			return nil, fmt.Errorf("failed to decode as array: %v, and as object: %v", err, err2)
 		}
 		receiptCount := len(resultObject.ReceiptsWithCounts.Receipts)
-		c.getLogger().Info("fetched receipts",
+		c.getLogger().Warn("✅ FALLBACK SUCCEEDED - Object format worked! (This means array fallback code IS needed)",
 			slog.Int("receipt_count", receiptCount),
 			slog.String("document_type", documentType))
 		return &resultObject.ReceiptsWithCounts, nil
@@ -426,7 +430,7 @@ func (c *Client) GetReceipts(ctx context.Context, startDate, endDate, documentTy
 	}
 
 	receiptCount := len(resultArray.ReceiptsWithCounts[0].Receipts)
-	c.getLogger().Info("fetched receipts",
+	c.getLogger().Info("🎉 ARRAY FORMAT WORKED - No fallback needed (object fallback code may not be necessary)",
 		slog.Int("receipt_count", receiptCount),
 		slog.String("document_type", documentType))
 
