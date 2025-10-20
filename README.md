@@ -1,5 +1,7 @@
 # Costco Go Client
 
+[![Version](https://img.shields.io/badge/version-0.1.0-blue.svg)](https://github.com/costco-go/releases/tag/v0.1.0)
+
 A Go client library and CLI for accessing Costco order history and receipt data via their GraphQL API.
 
 ## Features
@@ -14,8 +16,16 @@ A Go client library and CLI for accessing Costco order history and receipt data 
 
 ## Installation
 
+Install the latest version:
+
 ```bash
 go get github.com/costco-go/pkg/costco
+```
+
+Or install a specific version:
+
+```bash
+go get github.com/costco-go/pkg/costco@v0.1.0
 ```
 
 ## Library Usage
