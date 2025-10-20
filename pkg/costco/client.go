@@ -402,39 +402,43 @@ func (c *Client) GetReceipts(ctx context.Context, startDate, endDate, documentTy
 
 	c.getLogger().Debug("executing graphql query", slog.String("operation", "receiptsWithCounts"))
 
-	// Try as array first, similar to orders
-	var resultArray struct {
-		ReceiptsWithCounts []ReceiptsWithCountsResponse `json:"receiptsWithCounts"`
+	// Try object format first (this is what Costco's API currently returns)
+	var resultObject struct {
+		ReceiptsWithCounts ReceiptsWithCountsResponse `json:"receiptsWithCounts"`
 	}
 
-	if err := c.executeGraphQL(ctx, ReceiptsQuery, variables, &resultArray); err != nil {
-		// If array fails, try as object (backward compatibility)
-		c.getLogger().Warn("🚨 ARRAY FORMAT FAILED - attempting object format fallback",
-			slog.String("array_error", err.Error()),
+	if err := c.executeGraphQL(ctx, ReceiptsQuery, variables, &resultObject); err != nil {
+		// TODO: If this fallback is never hit over time, we can remove the array format code entirely.
+		// The array format may have been from API changes or incorrect assumptions during initial development.
+		// Monitor logs for the "🚨 ARRAY FALLBACK" message - if it never appears, delete this fallback code.
+		c.getLogger().Warn("🚨🚨🚨 OBJECT FORMAT FAILED - attempting ARRAY format fallback 🚨🚨🚨",
+			slog.String("object_error", err.Error()),
 			slog.String("document_type", documentType))
-		var resultObject struct {
-			ReceiptsWithCounts ReceiptsWithCountsResponse `json:"receiptsWithCounts"`
+
+		var resultArray struct {
+			ReceiptsWithCounts []ReceiptsWithCountsResponse `json:"receiptsWithCounts"`
 		}
-		if err2 := c.executeGraphQL(ctx, ReceiptsQuery, variables, &resultObject); err2 != nil {
-			return nil, fmt.Errorf("failed to decode as array: %v, and as object: %v", err, err2)
+		if err2 := c.executeGraphQL(ctx, ReceiptsQuery, variables, &resultArray); err2 != nil {
+			return nil, fmt.Errorf("failed to decode as object: %v, and as array: %v", err, err2)
 		}
-		receiptCount := len(resultObject.ReceiptsWithCounts.Receipts)
-		c.getLogger().Warn("✅ FALLBACK SUCCEEDED - Object format worked! (This means array fallback code IS needed)",
+
+		if len(resultArray.ReceiptsWithCounts) == 0 {
+			return nil, fmt.Errorf("no receipt data returned")
+		}
+
+		receiptCount := len(resultArray.ReceiptsWithCounts[0].Receipts)
+		c.getLogger().Warn("✅✅✅ ARRAY FALLBACK SUCCEEDED! Array format worked! (DO NOT DELETE THIS CODE) ✅✅✅",
 			slog.Int("receipt_count", receiptCount),
 			slog.String("document_type", documentType))
-		return &resultObject.ReceiptsWithCounts, nil
+		return &resultArray.ReceiptsWithCounts[0], nil
 	}
 
-	if len(resultArray.ReceiptsWithCounts) == 0 {
-		return nil, fmt.Errorf("no receipt data returned")
-	}
-
-	receiptCount := len(resultArray.ReceiptsWithCounts[0].Receipts)
-	c.getLogger().Info("🎉 ARRAY FORMAT WORKED - No fallback needed (object fallback code may not be necessary)",
+	receiptCount := len(resultObject.ReceiptsWithCounts.Receipts)
+	c.getLogger().Info("fetched receipts",
 		slog.Int("receipt_count", receiptCount),
 		slog.String("document_type", documentType))
 
-	return &resultArray.ReceiptsWithCounts[0], nil
+	return &resultObject.ReceiptsWithCounts, nil
 }
 
 func generateUUID() string {
