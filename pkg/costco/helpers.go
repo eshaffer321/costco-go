@@ -4,20 +4,26 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"sort"
 	"time"
 )
 
-// TransactionWithItems represents a receipt with its full item details
-type TransactionWithItems struct {
-	TransactionBarcode string
-	TransactionDate    time.Time
-	WarehouseName      string
-	Total              float64
-	Items              []ReceiptItem
-	MembershipNumber   string
-}
+// Analytics helper methods for the Costco client
 
-// GetAllTransactionItems fetches all receipts in a date range and retrieves full item details for each
+// GetAllTransactionItems fetches all receipts in a date range and retrieves full item details for each.
+// This method combines GetReceipts and GetReceiptDetail to provide complete transaction data
+// including all line items for each receipt.
+//
+// The startDate and endDate should be in YYYY-MM-DD format.
+// Returns a slice of TransactionWithItems, each containing full receipt details and all items.
+//
+// Example:
+//
+//	transactions, err := client.GetAllTransactionItems(ctx, "2025-01-01", "2025-01-31")
+//	for _, tx := range transactions {
+//	    fmt.Printf("Transaction on %s: $%.2f (%d items)\n",
+//	        tx.TransactionDate.Format("2006-01-02"), tx.Total, len(tx.Items))
+//	}
 func (c *Client) GetAllTransactionItems(ctx context.Context, startDate, endDate string) ([]TransactionWithItems, error) {
 	c.getLogger().Info("fetching all transaction items",
 		slog.String("start_date", startDate),
@@ -72,34 +78,32 @@ func (c *Client) GetAllTransactionItems(ctx context.Context, startDate, endDate 
 	return transactions, nil
 }
 
-// GetItemHistory returns all purchases of a specific item number
-func (c *Client) GetItemHistory(ctx context.Context, itemNumber, startDate, endDate string) ([]struct {
-	Date     string
-	Quantity int
-	Price    float64
-	Barcode  string
-}, error) {
+// GetItemHistory retrieves the complete purchase history for a specific item number
+// within the given date range. Returns a chronological list of all transactions
+// where the item was purchased, including date, quantity, price, and receipt barcode.
+//
+// The startDate and endDate should be in YYYY-MM-DD format.
+// The itemNumber is the Costco item identifier.
+//
+// Example:
+//
+//	history, err := client.GetItemHistory(ctx, "12345", "2025-01-01", "2025-12-31")
+//	for _, purchase := range history {
+//	    fmt.Printf("Bought %d units on %s for $%.2f\n",
+//	        purchase.Quantity, purchase.Date, purchase.Price)
+//	}
+func (c *Client) GetItemHistory(ctx context.Context, itemNumber, startDate, endDate string) ([]ItemPurchase, error) {
 	transactions, err := c.GetAllTransactionItems(ctx, startDate, endDate)
 	if err != nil {
 		return nil, err
 	}
 
-	var history []struct {
-		Date     string
-		Quantity int
-		Price    float64
-		Barcode  string
-	}
+	var history []ItemPurchase
 
 	for _, tx := range transactions {
 		for _, item := range tx.Items {
 			if item.ItemNumber == itemNumber {
-				history = append(history, struct {
-					Date     string
-					Quantity int
-					Price    float64
-					Barcode  string
-				}{
+				history = append(history, ItemPurchase{
 					Date:     tx.TransactionDate.Format("2006-01-02"),
 					Quantity: item.Unit,
 					Price:    item.Amount,
@@ -112,22 +116,25 @@ func (c *Client) GetItemHistory(ctx context.Context, itemNumber, startDate, endD
 	return history, nil
 }
 
-// GetSpendingSummary calculates total spending by category
-func (c *Client) GetSpendingSummary(ctx context.Context, startDate, endDate string) (map[int]struct {
-	Department string
-	Total      float64
-	ItemCount  int
-}, error) {
+// GetSpendingSummary calculates total spending and item counts by department.
+// Returns a map keyed by department number, with spending statistics for each department.
+//
+// The startDate and endDate should be in YYYY-MM-DD format.
+//
+// Example:
+//
+//	summary, err := client.GetSpendingSummary(ctx, "2025-01-01", "2025-12-31")
+//	for deptNum, stats := range summary {
+//	    fmt.Printf("%s: $%.2f across %d items\n",
+//	        stats.Department, stats.Total, stats.ItemCount)
+//	}
+func (c *Client) GetSpendingSummary(ctx context.Context, startDate, endDate string) (map[int]SpendingByDepartment, error) {
 	transactions, err := c.GetAllTransactionItems(ctx, startDate, endDate)
 	if err != nil {
 		return nil, err
 	}
 
-	summary := make(map[int]struct {
-		Department string
-		Total      float64
-		ItemCount  int
-	})
+	summary := make(map[int]SpendingByDepartment)
 
 	for _, tx := range transactions {
 		for _, item := range tx.Items {
@@ -143,28 +150,27 @@ func (c *Client) GetSpendingSummary(ctx context.Context, startDate, endDate stri
 	return summary, nil
 }
 
-// GetFrequentItems returns the most frequently purchased items
-func (c *Client) GetFrequentItems(ctx context.Context, startDate, endDate string, limit int) ([]struct {
-	ItemNumber      string
-	ItemDescription string
-	TotalQuantity   int
-	TotalSpent      float64
-	PurchaseCount   int
-}, error) {
+// GetFrequentItems returns the most frequently purchased items within a date range,
+// sorted by purchase frequency. Useful for identifying shopping patterns and favorite products.
+//
+// The startDate and endDate should be in YYYY-MM-DD format.
+// The limit parameter controls the maximum number of items returned (0 = return all).
+//
+// Example:
+//
+//	// Get top 10 most frequently purchased items
+//	items, err := client.GetFrequentItems(ctx, "2025-01-01", "2025-12-31", 10)
+//	for i, item := range items {
+//	    fmt.Printf("#%d: %s (bought %d times, spent $%.2f)\n",
+//	        i+1, item.ItemDescription, item.PurchaseCount, item.TotalSpent)
+//	}
+func (c *Client) GetFrequentItems(ctx context.Context, startDate, endDate string, limit int) ([]FrequentItem, error) {
 	transactions, err := c.GetAllTransactionItems(ctx, startDate, endDate)
 	if err != nil {
 		return nil, err
 	}
 
-	type itemStats struct {
-		ItemNumber      string
-		ItemDescription string
-		TotalQuantity   int
-		TotalSpent      float64
-		PurchaseCount   int
-	}
-
-	itemMap := make(map[string]*itemStats)
+	itemMap := make(map[string]*FrequentItem)
 
 	for _, tx := range transactions {
 		for _, item := range tx.Items {
@@ -173,7 +179,7 @@ func (c *Client) GetFrequentItems(ctx context.Context, startDate, endDate string
 				stats.TotalSpent += item.Amount
 				stats.PurchaseCount++
 			} else {
-				itemMap[item.ItemNumber] = &itemStats{
+				itemMap[item.ItemNumber] = &FrequentItem{
 					ItemNumber:      item.ItemNumber,
 					ItemDescription: item.ItemDescription01,
 					TotalQuantity:   item.Unit,
@@ -185,39 +191,15 @@ func (c *Client) GetFrequentItems(ctx context.Context, startDate, endDate string
 	}
 
 	// Convert map to slice for sorting
-	var items []struct {
-		ItemNumber      string
-		ItemDescription string
-		TotalQuantity   int
-		TotalSpent      float64
-		PurchaseCount   int
-	}
-
+	items := make([]FrequentItem, 0, len(itemMap))
 	for _, stats := range itemMap {
-		items = append(items, struct {
-			ItemNumber      string
-			ItemDescription string
-			TotalQuantity   int
-			TotalSpent      float64
-			PurchaseCount   int
-		}{
-			ItemNumber:      stats.ItemNumber,
-			ItemDescription: stats.ItemDescription,
-			TotalQuantity:   stats.TotalQuantity,
-			TotalSpent:      stats.TotalSpent,
-			PurchaseCount:   stats.PurchaseCount,
-		})
+		items = append(items, *stats)
 	}
 
-	// Sort by purchase count (you could also sort by TotalQuantity or TotalSpent)
-	// Simple bubble sort for demonstration
-	for i := 0; i < len(items)-1; i++ {
-		for j := 0; j < len(items)-i-1; j++ {
-			if items[j].PurchaseCount < items[j+1].PurchaseCount {
-				items[j], items[j+1] = items[j+1], items[j]
-			}
-		}
-	}
+	// Sort by purchase count (descending) using stdlib sort
+	sort.Slice(items, func(i, j int) bool {
+		return items[i].PurchaseCount > items[j].PurchaseCount
+	})
 
 	// Return only the requested limit
 	if limit > 0 && limit < len(items) {
