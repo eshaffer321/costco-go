@@ -1,103 +1,8 @@
 package costco
 
-import (
-	"log/slog"
-	"time"
-)
+// Receipt-related types for Costco warehouse and online receipts
 
-type TokenResponse struct {
-	IDToken               string `json:"id_token"`
-	TokenType             string `json:"token_type"`
-	NotBefore             int64  `json:"not_before"`
-	ClientInfo            string `json:"client_info"`
-	Scope                 string `json:"scope"`
-	RefreshToken          string `json:"refresh_token"`
-	RefreshTokenExpiresIn int    `json:"refresh_token_expires_in"`
-}
-
-type OnlineOrder struct {
-	OrderHeaderID      string          `json:"orderHeaderId"`
-	OrderPlacedDate    string          `json:"orderPlacedDate"`
-	OrderNumber        string          `json:"orderNumber"`
-	OrderTotal         float64         `json:"orderTotal"`
-	WarehouseNumber    string          `json:"warehouseNumber"`
-	Status             string          `json:"status"`
-	EmailAddress       string          `json:"emailAddress"`
-	OrderCancelAllowed bool            `json:"orderCancelAllowed"`
-	OrderPaymentFailed bool            `json:"orderPaymentFailed"`
-	OrderReturnAllowed bool            `json:"orderReturnAllowed"`
-	OrderLineItems     []OrderLineItem `json:"orderLineItems"`
-}
-
-type OrderLineItem struct {
-	OrderLineItemCancelAllowed bool      `json:"orderLineItemCancelAllowed"`
-	OrderLineItemID            string    `json:"orderLineItemId"`
-	OrderReturnAllowed         bool      `json:"orderReturnAllowed"`
-	ItemID                     string    `json:"itemId"`
-	ItemNumber                 string    `json:"itemNumber"`
-	ItemTypeID                 string    `json:"itemTypeId"`
-	LineNumber                 int       `json:"lineNumber"`
-	ItemDescription            string    `json:"itemDescription"`
-	DeliveryDate               string    `json:"deliveryDate"`
-	WarehouseNumber            string    `json:"warehouseNumber"`
-	Status                     string    `json:"status"`
-	OrderStatus                string    `json:"orderStatus"`
-	ParentOrderLineItemID      string    `json:"parentOrderLineItemId"`
-	IsFSAEligible              bool      `json:"isFSAEligible"`
-	ShippingType               string    `json:"shippingType"`
-	ShippingTimeFrame          string    `json:"shippingTimeFrame"`
-	IsShipToWarehouse          bool      `json:"isShipToWarehouse"`
-	CarrierItemCategory        string    `json:"carrierItemCategory"`
-	CarrierContactPhone        string    `json:"carrierContactPhone"`
-	ProgramTypeID              string    `json:"programTypeId"`
-	IsBuyAgainEligible         bool      `json:"isBuyAgainEligible"`
-	ScheduledDeliveryDate      string    `json:"scheduledDeliveryDate"`
-	ScheduledDeliveryDateEnd   string    `json:"scheduledDeliveryDateEnd"`
-	ConfiguredItemData         string    `json:"configuredItemData"`
-	Shipment                   *Shipment `json:"shipment"`
-}
-
-type Shipment struct {
-	ShipmentID                     string         `json:"shipmentId"`
-	OrderHeaderID                  string         `json:"orderHeaderId"`
-	OrderShipToID                  string         `json:"orderShipToId"`
-	LineNumber                     int            `json:"lineNumber"`
-	OrderNumber                    string         `json:"orderNumber"`
-	ShippingType                   string         `json:"shippingType"`
-	ShippingTimeFrame              string         `json:"shippingTimeFrame"`
-	ShippedDate                    string         `json:"shippedDate"`
-	PackageNumber                  string         `json:"packageNumber"`
-	TrackingNumber                 string         `json:"trackingNumber"`
-	TrackingSiteURL                string         `json:"trackingSiteUrl"`
-	CarrierName                    string         `json:"carrierName"`
-	EstimatedArrivalDate           string         `json:"estimatedArrivalDate"`
-	DeliveredDate                  string         `json:"deliveredDate"`
-	IsDeliveryDelayed              bool           `json:"isDeliveryDelayed"`
-	IsEstimatedArrivalDateEligible bool           `json:"isEstimatedArrivalDateEligible"`
-	StatusTypeID                   string         `json:"statusTypeId"`
-	Status                         string         `json:"status"`
-	PickUpReadyDate                string         `json:"pickUpReadyDate"`
-	PickUpCompletedDate            string         `json:"pickUpCompletedDate"`
-	ReasonCode                     string         `json:"reasonCode"`
-	TrackingEvent                  *TrackingEvent `json:"trackingEvent"`
-}
-
-type TrackingEvent struct {
-	Event                 string `json:"event"`
-	CarrierName           string `json:"carrierName"`
-	EventDate             string `json:"eventDate"`
-	EstimatedDeliveryDate string `json:"estimatedDeliveryDate"`
-	ScheduledDeliveryDate string `json:"scheduledDeliveryDate"`
-	TrackingNumber        string `json:"trackingNumber"`
-}
-
-type OnlineOrdersResponse struct {
-	PageNumber           int           `json:"pageNumber"`
-	PageSize             int           `json:"pageSize"`
-	TotalNumberOfRecords int           `json:"totalNumberOfRecords"`
-	BCOrders             []OnlineOrder `json:"bcOrders"`
-}
-
+// Receipt represents a single receipt from a Costco transaction
 type Receipt struct {
 	WarehouseName       string        `json:"warehouseName"`
 	ReceiptType         string        `json:"receiptType"`
@@ -131,6 +36,7 @@ type Receipt struct {
 	MembershipNumber    string        `json:"membershipNumber"`
 }
 
+// ReceiptItem represents a single line item on a receipt
 type ReceiptItem struct {
 	ItemNumber             string  `json:"itemNumber"`
 	ItemDescription01      string  `json:"itemDescription01"`
@@ -155,6 +61,7 @@ type ReceiptItem struct {
 	FuelGradeDescriptionFr string  `json:"fuelGradeDescriptionFr"`
 }
 
+// Tender represents payment information on a receipt
 type Tender struct {
 	TenderTypeCode               string  `json:"tenderTypeCode"`
 	TenderSubTypeCode            string  `json:"tenderSubTypeCode"`
@@ -177,6 +84,7 @@ type Tender struct {
 	StoredValueBucket            string  `json:"storedValueBucket"`
 }
 
+// SubTaxes represents detailed tax breakdown on a receipt
 type SubTaxes struct {
 	Tax1               float64 `json:"tax1"`
 	Tax2               float64 `json:"tax2"`
@@ -209,50 +117,11 @@ type SubTaxes struct {
 	UTaxableAmount     float64 `json:"uTaxableAmount"`
 }
 
+// ReceiptsWithCountsResponse represents the response from the receipts query
 type ReceiptsWithCountsResponse struct {
 	InWarehouse   int       `json:"inWarehouse"`
 	GasStation    int       `json:"gasStation"`
 	CarWash       int       `json:"carWash"`
 	GasAndCarWash int       `json:"gasAndCarWash"`
 	Receipts      []Receipt `json:"receipts"`
-}
-
-type GraphQLRequest struct {
-	Query     string                 `json:"query"`
-	Variables map[string]interface{} `json:"variables"`
-}
-
-type GraphQLResponse struct {
-	Data   interface{} `json:"data"`
-	Errors []struct {
-		Message string `json:"message"`
-	} `json:"errors"`
-}
-
-type OrdersQueryVariables struct {
-	StartDate       string `json:"startDate"`
-	EndDate         string `json:"endDate"`
-	PageNumber      int    `json:"pageNumber"`
-	PageSize        int    `json:"pageSize"`
-	WarehouseNumber string `json:"warehouseNumber"`
-}
-
-type ReceiptsQueryVariables struct {
-	StartDate       string `json:"startDate"`
-	EndDate         string `json:"endDate"`
-	DocumentType    string `json:"documentType"`
-	DocumentSubType string `json:"documentSubType"`
-}
-
-type ReceiptDetailQueryVariables struct {
-	Barcode      string `json:"barcode"`
-	DocumentType string `json:"documentType"`
-}
-
-type Config struct {
-	Email              string
-	Password           string
-	WarehouseNumber    string
-	TokenRefreshBuffer time.Duration
-	Logger             *slog.Logger
 }

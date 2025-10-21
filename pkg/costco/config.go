@@ -8,24 +8,13 @@ import (
 	"time"
 )
 
+// Configuration and token persistence
+
 const (
 	configDir  = ".costco"
 	configFile = "config.json"
 	tokenFile  = "tokens.json"
 )
-
-type StoredConfig struct {
-	Email           string `json:"email"`
-	WarehouseNumber string `json:"warehouse_number"`
-}
-
-type StoredTokens struct {
-	IDToken               string    `json:"id_token"`
-	RefreshToken          string    `json:"refresh_token"`
-	TokenExpiry           time.Time `json:"token_expiry"`
-	RefreshTokenExpiresAt time.Time `json:"refresh_token_expires_at"`
-	UpdatedAt             time.Time `json:"updated_at"`
-}
 
 func getConfigPath() (string, error) {
 	// Allow overriding config path for testing
@@ -48,6 +37,17 @@ func ensureConfigDir() error {
 	return os.MkdirAll(configPath, 0700) // Only user can read/write
 }
 
+// SaveConfig persists user configuration to disk at ~/.costco/config.json.
+// The config file stores non-sensitive settings like email and warehouse number.
+// The file is created with 0600 permissions (user read/write only).
+//
+// Example:
+//
+//	config := &costco.StoredConfig{
+//	    Email:           "user@example.com",
+//	    WarehouseNumber: "847",
+//	}
+//	err := costco.SaveConfig(config)
 func SaveConfig(config *StoredConfig) error {
 	if err := ensureConfigDir(); err != nil {
 		return err
@@ -67,6 +67,19 @@ func SaveConfig(config *StoredConfig) error {
 	return os.WriteFile(filePath, data, 0600) // Only user can read/write
 }
 
+// LoadConfig loads user configuration from ~/.costco/config.json.
+// Returns nil if the config file doesn't exist (not an error).
+// Returns an error only if the file exists but cannot be read or parsed.
+//
+// Example:
+//
+//	config, err := costco.LoadConfig()
+//	if err != nil {
+//	    return err
+//	}
+//	if config != nil {
+//	    fmt.Printf("Email: %s\n", config.Email)
+//	}
 func LoadConfig() (*StoredConfig, error) {
 	configPath, err := getConfigPath()
 	if err != nil {
@@ -90,6 +103,19 @@ func LoadConfig() (*StoredConfig, error) {
 	return &config, nil
 }
 
+// SaveTokens persists authentication tokens to disk at ~/.costco/tokens.json.
+// The token file is created with 0600 permissions (user read/write only) for security.
+// This function is automatically called by the client after successful authentication
+// or token refresh. The UpdatedAt timestamp is automatically set to the current time.
+//
+// Example:
+//
+//	tokens := &costco.StoredTokens{
+//	    IDToken:      "eyJhbGc...",
+//	    RefreshToken: "1//0g...",
+//	    TokenExpiry:  time.Now().Add(1 * time.Hour),
+//	}
+//	err := costco.SaveTokens(tokens)
 func SaveTokens(tokens *StoredTokens) error {
 	if err := ensureConfigDir(); err != nil {
 		return err
@@ -111,6 +137,20 @@ func SaveTokens(tokens *StoredTokens) error {
 	return os.WriteFile(filePath, data, 0600) // Only user can read/write
 }
 
+// LoadTokens loads authentication tokens from ~/.costco/tokens.json.
+// Returns nil if the token file doesn't exist (not an error).
+// Returns an error only if the file exists but cannot be read or parsed.
+// The client automatically calls this during initialization to restore saved tokens.
+//
+// Example:
+//
+//	tokens, err := costco.LoadTokens()
+//	if err != nil {
+//	    return err
+//	}
+//	if tokens != nil && time.Now().Before(tokens.TokenExpiry) {
+//	    fmt.Println("Valid token found")
+//	}
 func LoadTokens() (*StoredTokens, error) {
 	configPath, err := getConfigPath()
 	if err != nil {
@@ -134,6 +174,16 @@ func LoadTokens() (*StoredTokens, error) {
 	return &tokens, nil
 }
 
+// ClearTokens removes the saved token file from ~/.costco/tokens.json.
+// This is useful for forcing re-authentication or cleaning up after logout.
+// Returns nil if the file doesn't exist (already cleared).
+//
+// Example:
+//
+//	err := costco.ClearTokens()
+//	if err != nil {
+//	    log.Printf("Failed to clear tokens: %v", err)
+//	}
 func ClearTokens() error {
 	configPath, err := getConfigPath()
 	if err != nil {
@@ -148,6 +198,20 @@ func ClearTokens() error {
 	return nil
 }
 
+// GetConfigInfo returns a human-readable summary of the current configuration state.
+// This includes the config directory path, whether config and token files exist,
+// token expiry status, and last update time. Useful for debugging and status checks.
+//
+// Example:
+//
+//	info := costco.GetConfigInfo()
+//	fmt.Println(info)
+//	// Output:
+//	// Config directory: /Users/username/.costco
+//	// Config file: /Users/username/.costco/config.json (exists)
+//	// Token file: /Users/username/.costco/tokens.json (exists)
+//	//   - Token valid until: 2025-10-20T15:30:00Z
+//	//   - Last updated: 2025-10-20T14:30:00Z
 func GetConfigInfo() string {
 	configPath, err := getConfigPath()
 	if err != nil {

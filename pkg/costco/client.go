@@ -36,6 +36,27 @@ func (c *Client) getLogger() *slog.Logger {
 	return slog.New(slog.NewTextHandler(io.Discard, nil))
 }
 
+// NewClient creates a new Costco API client with the given configuration.
+// The client handles authentication, token management, and all API operations.
+// If tokens exist in ~/.costco/tokens.json, they will be automatically loaded and used.
+//
+// Configuration options:
+//   - Email: Costco account email (required)
+//   - Password: Costco account password (required)
+//   - WarehouseNumber: Default warehouse (default: "847")
+//   - TokenRefreshBuffer: How early to refresh tokens before expiry (default: 5 minutes)
+//   - Logger: Optional slog.Logger for debugging (default: silent mode)
+//
+// Example:
+//
+//	config := costco.Config{
+//	    Email:              "user@example.com",
+//	    Password:           "password",
+//	    WarehouseNumber:    "847",
+//	    TokenRefreshBuffer: 5 * time.Minute,
+//	    Logger:             slog.Default(),
+//	}
+//	client := costco.NewClient(config)
 func NewClient(config Config) *Client {
 	if config.TokenRefreshBuffer == 0 {
 		config.TokenRefreshBuffer = 5 * time.Minute
@@ -350,6 +371,29 @@ func (c *Client) executeGraphQL(ctx context.Context, query string, variables map
 	return nil
 }
 
+// GetOnlineOrders retrieves online orders from Costco.com within the specified date range.
+// Supports pagination to handle large numbers of orders efficiently.
+//
+// Parameters:
+//   - ctx: Context for cancellation and timeouts
+//   - startDate: Start date in YYYY-MM-DD format (e.g., "2025-01-01")
+//   - endDate: End date in YYYY-MM-DD format (e.g., "2025-01-31")
+//   - pageNumber: Page number to retrieve (1-based, e.g., 1 for first page)
+//   - pageSize: Number of orders per page (e.g., 10, 20, 50)
+//
+// Returns:
+//   - OnlineOrdersResponse containing orders, pagination info, and total count
+//
+// Example:
+//
+//	orders, err := client.GetOnlineOrders(ctx, "2025-01-01", "2025-01-31", 1, 10)
+//	if err != nil {
+//	    log.Fatal(err)
+//	}
+//	fmt.Printf("Found %d orders\n", orders.TotalNumberOfRecords)
+//	for _, order := range orders.BCOrders {
+//	    fmt.Printf("Order %s: $%.2f\n", order.OrderNumber, order.OrderTotal)
+//	}
 func (c *Client) GetOnlineOrders(ctx context.Context, startDate, endDate string, pageNumber, pageSize int) (*OnlineOrdersResponse, error) {
 	c.getLogger().Info("fetching online orders",
 		slog.String("start_date", startDate),
@@ -387,6 +431,32 @@ func (c *Client) GetOnlineOrders(ctx context.Context, startDate, endDate string,
 	return &result.GetOnlineOrders[0], nil
 }
 
+// GetReceipts retrieves warehouse receipts within the specified date range.
+// Can filter by document type to get warehouse purchases, fuel receipts, or both.
+//
+// Parameters:
+//   - ctx: Context for cancellation and timeouts
+//   - startDate: Start date in M/DD/YYYY format (e.g., "1/01/2025")
+//   - endDate: End date in M/DD/YYYY format (e.g., "1/31/2025")
+//   - documentType: Type of receipts to retrieve ("all", "warehouse", "fuel")
+//   - documentSubType: Sub-type filter (usually "all")
+//
+// Returns:
+//   - ReceiptsWithCountsResponse containing receipts and counts by type
+//
+// Note: The date format for receipts differs from online orders (M/DD/YYYY vs YYYY-MM-DD).
+//
+// Example:
+//
+//	receipts, err := client.GetReceipts(ctx, "1/01/2025", "1/31/2025", "all", "all")
+//	if err != nil {
+//	    log.Fatal(err)
+//	}
+//	fmt.Printf("Found %d warehouse receipts\n", receipts.InWarehouse)
+//	for _, receipt := range receipts.Receipts {
+//	    fmt.Printf("Receipt from %s: $%.2f\n",
+//	        receipt.TransactionDateTime, receipt.Total)
+//	}
 func (c *Client) GetReceipts(ctx context.Context, startDate, endDate, documentType, documentSubType string) (*ReceiptsWithCountsResponse, error) {
 	c.getLogger().Info("fetching receipts",
 		slog.String("start_date", startDate),
@@ -455,6 +525,28 @@ func generateUUID() string {
 	return fmt.Sprintf("%x-%x-%x-%x-%x", b[0:4], b[4:6], b[6:8], b[8:10], b[10:])
 }
 
+// GetReceiptDetail retrieves complete details for a specific receipt, including all line items.
+// This provides full transaction data including item descriptions, prices, taxes, and payment info.
+//
+// Parameters:
+//   - ctx: Context for cancellation and timeouts
+//   - barcode: Receipt barcode/transaction ID (e.g., "21134300501862509051323")
+//   - documentType: Type of receipt ("warehouse" or "fuel")
+//
+// Returns:
+//   - Receipt containing full transaction details and all line items
+//
+// Example:
+//
+//	receipt, err := client.GetReceiptDetail(ctx, "21134300501862509051323", "warehouse")
+//	if err != nil {
+//	    log.Fatal(err)
+//	}
+//	fmt.Printf("Receipt total: $%.2f with %d items\n",
+//	    receipt.Total, len(receipt.ItemArray))
+//	for _, item := range receipt.ItemArray {
+//	    fmt.Printf("  %s: $%.2f\n", item.ItemDescription01, item.Amount)
+//	}
 func (c *Client) GetReceiptDetail(ctx context.Context, barcode, documentType string) (*Receipt, error) {
 	c.getLogger().Info("fetching receipt detail",
 		slog.String("barcode", barcode),
