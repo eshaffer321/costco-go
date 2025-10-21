@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
 	"net/url"
 	"sync"
@@ -23,6 +24,16 @@ type Client struct {
 	token       *TokenResponse
 	tokenExpiry time.Time
 	mu          sync.RWMutex
+	logger      *slog.Logger
+}
+
+// getLogger returns the client's logger or a no-op logger if none is set
+func (c *Client) getLogger() *slog.Logger {
+	if c.logger != nil {
+		return c.logger
+	}
+	// Return a no-op logger that discards all output
+	return slog.New(slog.NewTextHandler(io.Discard, nil))
 }
 
 func NewClient(config Config) *Client {
@@ -30,11 +41,21 @@ func NewClient(config Config) *Client {
 		config.TokenRefreshBuffer = 5 * time.Minute
 	}
 
+	// Initialize logger with no-op logger if not provided
+	logger := config.Logger
+	if logger == nil {
+		// Use a no-op logger that discards all output
+		logger = slog.New(slog.NewTextHandler(io.Discard, nil))
+	}
+	// Add "client=costco" attribute to all log messages
+	logger = logger.With(slog.String("client", "costco"))
+
 	client := &Client{
 		httpClient: &http.Client{
 			Timeout: 30 * time.Second,
 		},
 		config: config,
+		logger: logger,
 	}
 
 	// Try to load existing tokens
@@ -44,12 +65,15 @@ func NewClient(config Config) *Client {
 			RefreshToken: tokens.RefreshToken,
 		}
 		client.tokenExpiry = tokens.TokenExpiry
+		logger.Info("token initialized from disk", slog.Time("token_expiry", client.tokenExpiry))
 	}
 
 	return client
 }
 
 func (c *Client) authenticate() error {
+	c.getLogger().Debug("authenticating with costco", slog.String("email", c.config.Email))
+
 	data := url.Values{}
 	data.Set("client_id", ClientID)
 	data.Set("scope", Scope)
@@ -67,6 +91,7 @@ func (c *Client) authenticate() error {
 
 	req, err := http.NewRequest("POST", TokenEndpoint, bytes.NewBufferString(data.Encode()))
 	if err != nil {
+		c.getLogger().Error("failed to create auth request", slog.String("error", err.Error()))
 		return fmt.Errorf("creating auth request: %w", err)
 	}
 
@@ -79,19 +104,25 @@ func (c *Client) authenticate() error {
 	req.Header.Set("Referer", "https://www.costco.com/")
 	req.Header.Set("User-Agent", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36")
 
+	c.getLogger().Debug("sending auth request", slog.String("endpoint", TokenEndpoint), slog.String("method", "POST"))
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
+		c.getLogger().Error("auth request failed", slog.String("error", err.Error()))
 		return fmt.Errorf("executing auth request: %w", err)
 	}
 	defer resp.Body.Close()
 
+	c.getLogger().Debug("auth response received", slog.Int("status_code", resp.StatusCode))
+
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)
+		c.getLogger().Error("authentication failed", slog.Int("status_code", resp.StatusCode))
 		return fmt.Errorf("auth failed with status %d: %s", resp.StatusCode, string(body))
 	}
 
 	var tokenResp TokenResponse
 	if err := json.NewDecoder(resp.Body).Decode(&tokenResp); err != nil {
+		c.getLogger().Error("failed to decode token response", slog.String("error", err.Error()))
 		return fmt.Errorf("decoding token response: %w", err)
 	}
 
@@ -100,6 +131,8 @@ func (c *Client) authenticate() error {
 	c.tokenExpiry = c.calculateTokenExpiry(tokenResp.IDToken)
 	c.mu.Unlock()
 
+	c.getLogger().Info("authenticated", slog.Time("token_expiry", c.tokenExpiry))
+
 	// Save tokens to disk
 	storedTokens := &StoredTokens{
 		IDToken:               tokenResp.IDToken,
@@ -107,9 +140,11 @@ func (c *Client) authenticate() error {
 		TokenExpiry:           c.tokenExpiry,
 		RefreshTokenExpiresAt: time.Now().Add(time.Duration(tokenResp.RefreshTokenExpiresIn) * time.Second),
 	}
+	c.getLogger().Debug("saving tokens to disk")
 	if err := SaveTokens(storedTokens); err != nil {
-		// Log error but don't fail the auth
-		fmt.Printf("Warning: Could not save tokens: %v\n", err)
+		c.getLogger().Warn("failed to save tokens", slog.String("error", err.Error()))
+	} else {
+		c.getLogger().Info("tokens saved successfully")
 	}
 
 	return nil
@@ -134,11 +169,19 @@ func (c *Client) refreshTokenIfNeeded() error {
 	c.mu.RLock()
 	needsRefresh := c.token == nil || time.Now().After(c.tokenExpiry)
 	hasRefreshToken := c.token != nil && c.token.RefreshToken != ""
+	tokenExpiry := c.tokenExpiry
 	c.mu.RUnlock()
 
 	if !needsRefresh {
+		// Check if token is expiring soon
+		timeUntilExpiry := time.Until(tokenExpiry)
+		if timeUntilExpiry > 0 && timeUntilExpiry < 5*time.Minute {
+			c.getLogger().Warn("token expiring soon", slog.Duration("time_until_expiry", timeUntilExpiry))
+		}
 		return nil
 	}
+
+	c.getLogger().Debug("token refresh needed", slog.Bool("has_refresh_token", hasRefreshToken))
 
 	if hasRefreshToken {
 		return c.refreshToken()
@@ -148,6 +191,8 @@ func (c *Client) refreshTokenIfNeeded() error {
 }
 
 func (c *Client) refreshToken() error {
+	c.getLogger().Debug("refreshing token")
+
 	c.mu.RLock()
 	refreshToken := c.token.RefreshToken
 	c.mu.RUnlock()
@@ -167,6 +212,7 @@ func (c *Client) refreshToken() error {
 
 	req, err := http.NewRequest("POST", TokenEndpoint, bytes.NewBufferString(data.Encode()))
 	if err != nil {
+		c.getLogger().Error("failed to create refresh request", slog.String("error", err.Error()))
 		return fmt.Errorf("creating refresh request: %w", err)
 	}
 
@@ -179,18 +225,24 @@ func (c *Client) refreshToken() error {
 	req.Header.Set("Referer", "https://www.costco.com/")
 	req.Header.Set("User-Agent", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36")
 
+	c.getLogger().Debug("sending refresh request", slog.String("endpoint", TokenEndpoint), slog.String("method", "POST"))
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
+		c.getLogger().Error("refresh request failed", slog.String("error", err.Error()))
 		return fmt.Errorf("executing refresh request: %w", err)
 	}
 	defer resp.Body.Close()
 
+	c.getLogger().Debug("refresh response received", slog.Int("status_code", resp.StatusCode))
+
 	if resp.StatusCode != http.StatusOK {
+		c.getLogger().Warn("token refresh failed, falling back to authentication", slog.Int("status_code", resp.StatusCode))
 		return c.authenticate()
 	}
 
 	var tokenResp TokenResponse
 	if err := json.NewDecoder(resp.Body).Decode(&tokenResp); err != nil {
+		c.getLogger().Error("failed to decode refresh response", slog.String("error", err.Error()))
 		return fmt.Errorf("decoding refresh response: %w", err)
 	}
 
@@ -199,6 +251,8 @@ func (c *Client) refreshToken() error {
 	c.tokenExpiry = c.calculateTokenExpiry(tokenResp.IDToken)
 	c.mu.Unlock()
 
+	c.getLogger().Info("token refreshed", slog.Time("token_expiry", c.tokenExpiry))
+
 	// Save refreshed tokens to disk
 	storedTokens := &StoredTokens{
 		IDToken:               tokenResp.IDToken,
@@ -206,9 +260,11 @@ func (c *Client) refreshToken() error {
 		TokenExpiry:           c.tokenExpiry,
 		RefreshTokenExpiresAt: time.Now().Add(time.Duration(tokenResp.RefreshTokenExpiresIn) * time.Second),
 	}
+	c.getLogger().Debug("saving refreshed tokens to disk")
 	if err := SaveTokens(storedTokens); err != nil {
-		// Log error but don't fail the refresh
-		fmt.Printf("Warning: Could not save refreshed tokens: %v\n", err)
+		c.getLogger().Warn("failed to save refreshed tokens", slog.String("error", err.Error()))
+	} else {
+		c.getLogger().Info("refreshed tokens saved successfully")
 	}
 
 	return nil
@@ -226,11 +282,13 @@ func (c *Client) executeGraphQL(ctx context.Context, query string, variables map
 
 	body, err := json.Marshal(reqBody)
 	if err != nil {
+		c.getLogger().Error("failed to marshal graphql request", slog.String("error", err.Error()))
 		return fmt.Errorf("marshaling request: %w", err)
 	}
 
 	req, err := http.NewRequestWithContext(ctx, "POST", GraphQLEndpoint, bytes.NewReader(body))
 	if err != nil {
+		c.getLogger().Error("failed to create graphql request", slog.String("error", err.Error()))
 		return fmt.Errorf("creating request: %w", err)
 	}
 
@@ -260,14 +318,19 @@ func (c *Client) executeGraphQL(ctx context.Context, query string, variables map
 	req.Header.Set("sec-ch-ua-mobile", "?0")
 	req.Header.Set("sec-ch-ua-platform", `"macOS"`)
 
+	c.getLogger().Debug("sending graphql request", slog.String("endpoint", GraphQLEndpoint), slog.String("method", "POST"))
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
+		c.getLogger().Error("graphql request failed", slog.String("error", err.Error()))
 		return fmt.Errorf("executing request: %w", err)
 	}
 	defer resp.Body.Close()
 
+	c.getLogger().Debug("graphql response received", slog.Int("status_code", resp.StatusCode))
+
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)
+		c.getLogger().Error("graphql request failed", slog.Int("status_code", resp.StatusCode))
 		return fmt.Errorf("request failed with status %d: %s", resp.StatusCode, string(body))
 	}
 
@@ -275,10 +338,12 @@ func (c *Client) executeGraphQL(ctx context.Context, query string, variables map
 	graphQLResp.Data = result
 
 	if err := json.NewDecoder(resp.Body).Decode(&graphQLResp); err != nil {
+		c.getLogger().Debug("failed to decode graphql response", slog.String("error", err.Error()))
 		return fmt.Errorf("decoding response: %w", err)
 	}
 
 	if len(graphQLResp.Errors) > 0 {
+		c.getLogger().Warn("graphql errors in response", slog.Int("error_count", len(graphQLResp.Errors)))
 		return fmt.Errorf("GraphQL errors: %v", graphQLResp.Errors)
 	}
 
@@ -286,6 +351,12 @@ func (c *Client) executeGraphQL(ctx context.Context, query string, variables map
 }
 
 func (c *Client) GetOnlineOrders(ctx context.Context, startDate, endDate string, pageNumber, pageSize int) (*OnlineOrdersResponse, error) {
+	c.getLogger().Info("fetching online orders",
+		slog.String("start_date", startDate),
+		slog.String("end_date", endDate),
+		slog.Int("page_number", pageNumber),
+		slog.Int("page_size", pageSize))
+
 	variables := map[string]interface{}{
 		"startDate":       startDate,
 		"endDate":         endDate,
@@ -294,18 +365,34 @@ func (c *Client) GetOnlineOrders(ctx context.Context, startDate, endDate string,
 		"warehouseNumber": c.config.WarehouseNumber,
 	}
 
+	c.getLogger().Debug("executing graphql query", slog.String("operation", "getOnlineOrders"))
+
 	var result struct {
-		GetOnlineOrders OnlineOrdersResponse `json:"getOnlineOrders"`
+		GetOnlineOrders []OnlineOrdersResponse `json:"getOnlineOrders"`
 	}
 
 	if err := c.executeGraphQL(ctx, OnlineOrdersQuery, variables, &result); err != nil {
 		return nil, err
 	}
 
-	return &result.GetOnlineOrders, nil
+	if len(result.GetOnlineOrders) == 0 {
+		return nil, fmt.Errorf("no order data returned")
+	}
+
+	orderCount := len(result.GetOnlineOrders[0].BCOrders)
+	c.getLogger().Info("fetched online orders",
+		slog.Int("order_count", orderCount),
+		slog.String("date_range", startDate+" to "+endDate))
+
+	return &result.GetOnlineOrders[0], nil
 }
 
 func (c *Client) GetReceipts(ctx context.Context, startDate, endDate, documentType, documentSubType string) (*ReceiptsWithCountsResponse, error) {
+	c.getLogger().Info("fetching receipts",
+		slog.String("start_date", startDate),
+		slog.String("end_date", endDate),
+		slog.String("document_type", documentType))
+
 	variables := map[string]interface{}{
 		"startDate":       startDate,
 		"endDate":         endDate,
@@ -313,23 +400,49 @@ func (c *Client) GetReceipts(ctx context.Context, startDate, endDate, documentTy
 		"documentSubType": documentSubType,
 	}
 
-	var result struct {
-		ReceiptsWithCounts ReceiptsWithCountsResponse `json:"receiptsWithCounts"`
+	c.getLogger().Debug("executing graphql query", slog.String("operation", "receiptsWithCounts"))
+
+	// Try as array first, similar to orders
+	var resultArray struct {
+		ReceiptsWithCounts []ReceiptsWithCountsResponse `json:"receiptsWithCounts"`
 	}
 
-	if err := c.executeGraphQL(ctx, ReceiptsQuery, variables, &result); err != nil {
-		return nil, err
+	if err := c.executeGraphQL(ctx, ReceiptsQuery, variables, &resultArray); err != nil {
+		// If array fails, try as object (backward compatibility)
+		c.getLogger().Warn("🚨 ARRAY FORMAT FAILED - attempting object format fallback",
+			slog.String("array_error", err.Error()),
+			slog.String("document_type", documentType))
+		var resultObject struct {
+			ReceiptsWithCounts ReceiptsWithCountsResponse `json:"receiptsWithCounts"`
+		}
+		if err2 := c.executeGraphQL(ctx, ReceiptsQuery, variables, &resultObject); err2 != nil {
+			return nil, fmt.Errorf("failed to decode as array: %v, and as object: %v", err, err2)
+		}
+		receiptCount := len(resultObject.ReceiptsWithCounts.Receipts)
+		c.getLogger().Warn("✅ FALLBACK SUCCEEDED - Object format worked! (This means array fallback code IS needed)",
+			slog.Int("receipt_count", receiptCount),
+			slog.String("document_type", documentType))
+		return &resultObject.ReceiptsWithCounts, nil
 	}
 
-	return &result.ReceiptsWithCounts, nil
+	if len(resultArray.ReceiptsWithCounts) == 0 {
+		return nil, fmt.Errorf("no receipt data returned")
+	}
+
+	receiptCount := len(resultArray.ReceiptsWithCounts[0].Receipts)
+	c.getLogger().Info("🎉 ARRAY FORMAT WORKED - No fallback needed (object fallback code may not be necessary)",
+		slog.Int("receipt_count", receiptCount),
+		slog.String("document_type", documentType))
+
+	return &resultArray.ReceiptsWithCounts[0], nil
 }
 
 func generateUUID() string {
 	b := make([]byte, 16)
 	if _, err := rand.Read(b); err != nil {
 		// Fallback to timestamp-based UUID if random fails
-		return fmt.Sprintf("%d-%d-%d-%d-%d", 
-			time.Now().Unix(), 
+		return fmt.Sprintf("%d-%d-%d-%d-%d",
+			time.Now().Unix(),
 			time.Now().UnixNano()%1000000,
 			time.Now().UnixNano()%100000,
 			time.Now().UnixNano()%10000,
@@ -339,10 +452,16 @@ func generateUUID() string {
 }
 
 func (c *Client) GetReceiptDetail(ctx context.Context, barcode, documentType string) (*Receipt, error) {
+	c.getLogger().Info("fetching receipt detail",
+		slog.String("barcode", barcode),
+		slog.String("document_type", documentType))
+
 	variables := map[string]interface{}{
 		"barcode":      barcode,
 		"documentType": documentType,
 	}
+
+	c.getLogger().Debug("executing graphql query", slog.String("operation", "getReceiptDetail"))
 
 	var result struct {
 		ReceiptsWithCounts struct {
@@ -358,5 +477,12 @@ func (c *Client) GetReceiptDetail(ctx context.Context, barcode, documentType str
 		return nil, fmt.Errorf("no receipt found for barcode %s", barcode)
 	}
 
-	return &result.ReceiptsWithCounts.Receipts[0], nil
+	receipt := &result.ReceiptsWithCounts.Receipts[0]
+	c.getLogger().Info("fetched receipt detail",
+		slog.String("barcode", barcode),
+		slog.String("document_type", documentType),
+		slog.Int("item_count", len(receipt.ItemArray)),
+		slog.Float64("total", receipt.Total))
+
+	return receipt, nil
 }

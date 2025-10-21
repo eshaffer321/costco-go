@@ -1,6 +1,9 @@
 package costco
 
-import "time"
+import (
+	"log/slog"
+	"time"
+)
 
 type TokenResponse struct {
 	IDToken               string `json:"id_token"`
@@ -251,4 +254,5 @@ type Config struct {
 	Password           string
 	WarehouseNumber    string
 	TokenRefreshBuffer time.Duration
+	Logger             *slog.Logger
 }

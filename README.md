@@ -1,5 +1,7 @@
 # Costco Go Client
 
+[![Version](https://img.shields.io/badge/version-0.1.0-blue.svg)](https://github.com/costco-go/releases/tag/v0.1.0)
+
 A Go client library and CLI for accessing Costco order history and receipt data via their GraphQL API.
 
 ## Features
@@ -14,8 +16,16 @@ A Go client library and CLI for accessing Costco order history and receipt data 
 
 ## Installation
 
+Install the latest version:
+
 ```bash
 go get github.com/costco-go/pkg/costco
+```
+
+Or install a specific version:
+
+```bash
+go get github.com/costco-go/pkg/costco@v0.1.0
 ```
 
 ## Library Usage
@@ -28,7 +38,7 @@ import (
     "fmt"
     "log"
     "time"
-    
+
     "github.com/costco-go/pkg/costco"
 )
 
@@ -39,39 +49,127 @@ func main() {
         WarehouseNumber:    "847", // Your local warehouse number
         TokenRefreshBuffer: 5 * time.Minute,
     }
-    
+
     client := costco.NewClient(config)
     ctx := context.Background()
-    
+
     // Get online orders
     orders, err := client.GetOnlineOrders(ctx, "2025-01-01", "2025-01-31", 1, 10)
     if err != nil {
         log.Fatal(err)
     }
-    
+
     for _, order := range orders.BCOrders {
         fmt.Printf("Order %s: $%.2f\n", order.OrderNumber, order.OrderTotal)
     }
-    
+
     // Get receipts
     receipts, err := client.GetReceipts(ctx, "1/01/2025", "1/31/2025", "all", "all")
     if err != nil {
         log.Fatal(err)
     }
-    
+
     for _, receipt := range receipts.Receipts {
         fmt.Printf("Receipt from %s: $%.2f\n", receipt.TransactionDateTime, receipt.Total)
     }
-    
+
     // Get detailed receipt
     receipt, err := client.GetReceiptDetail(ctx, "21134300501862509051323", "warehouse")
     if err != nil {
         log.Fatal(err)
     }
-    
+
     fmt.Printf("Receipt total: $%.2f with %d items\n", receipt.Total, receipt.TotalItemCount)
 }
 ```
+
+## Logging
+
+The client supports optional logger injection using Go's standard `log/slog` package. By default, if no logger is provided, all logs are silently discarded.
+
+### Basic Usage (Silent Mode)
+
+```go
+// Logs are silently discarded (default behavior)
+config := costco.Config{
+    Email:           "your-email@example.com",
+    Password:        "your-password",
+    WarehouseNumber: "847",
+}
+client := costco.NewClient(config)
+```
+
+### With Custom Logger
+
+```go
+import (
+    "log/slog"
+    "os"
+
+    "github.com/costco-go/pkg/costco"
+)
+
+// Create a text logger that outputs to stdout
+logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{
+    Level: slog.LevelInfo,
+}))
+
+config := costco.Config{
+    Email:           "your-email@example.com",
+    Password:        "your-password",
+    WarehouseNumber: "847",
+    Logger:          logger,
+}
+
+client := costco.NewClient(config)
+```
+
+### JSON Logging
+
+For structured JSON logs, use `slog.NewJSONHandler`:
+
+```go
+logger := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
+    Level: slog.LevelDebug, // Include debug logs
+}))
+
+config := costco.Config{
+    Email:           "your-email@example.com",
+    Password:        "your-password",
+    WarehouseNumber: "847",
+    Logger:          logger,
+}
+
+client := costco.NewClient(config)
+```
+
+### Log Levels
+
+The client uses the following log levels:
+
+- `Info`: High-level operations (fetching orders, receipts, authentication success)
+- `Debug`: Detailed debugging information (API requests, token refresh)
+- `Warn`: Non-critical issues (token expiring soon, fallback behavior)
+- `Error`: Error conditions (authentication failures, API errors)
+
+### Structured Logging
+
+All logs use structured key-value pairs for easy parsing and filtering:
+
+```json
+{
+  "time": "2025-01-15T10:30:00Z",
+  "level": "INFO",
+  "msg": "fetching online orders",
+  "client": "costco",
+  "start_date": "2025-01-01",
+  "end_date": "2025-01-31",
+  "page_number": 1,
+  "page_size": 10
+}
+```
+
+Every log message includes a `client=costco` attribute for easy identification in multi-client applications.
 
 ## CLI Usage
 

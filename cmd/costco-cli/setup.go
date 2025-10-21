@@ -8,8 +8,9 @@ import (
 	"strings"
 	"syscall"
 
-	"github.com/costco-go/pkg/costco"
 	"golang.org/x/term"
+
+	"github.com/costco-go/pkg/costco"
 )
 
 func setupCredentials() error {

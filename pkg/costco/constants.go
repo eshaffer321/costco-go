@@ -1,5 +1,10 @@
 package costco
 
+// Library Version
+const (
+	Version = "0.1.0"
+)
+
 // API Endpoints
 const (
 	TokenEndpoint   = "https://signin.costco.com/e0714dd4-784d-46d6-a278-3e29553483eb/b2c_1a_sso_wcs_signup_signin_157/oauth2/v2.0/token"
