@@ -1,4 +1,4 @@
-module github.com/costco-go
+module github.com/eshaffer321/costco-go
 
 go 1.24.0
 
