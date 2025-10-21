@@ -13,11 +13,11 @@ import (
 // TokenRefreshBuffer controls how early tokens are refreshed (default: 5 minutes before expiry).
 // Logger is optional - if nil, all logs are silently discarded.
 type Config struct {
-	Email              string          // Costco account email (required)
-	Password           string          // Costco account password (required)
-	WarehouseNumber    string          // Default warehouse number (default: "847")
-	TokenRefreshBuffer time.Duration   // How early to refresh tokens before expiry (default: 5min)
-	Logger             *slog.Logger    // Optional structured logger (nil = silent)
+	Email              string        // Costco account email (required)
+	Password           string        // Costco account password (required)
+	WarehouseNumber    string        // Default warehouse number (default: "847")
+	TokenRefreshBuffer time.Duration // How early to refresh tokens before expiry (default: 5min)
+	Logger             *slog.Logger  // Optional structured logger (nil = silent)
 }
 
 // StoredConfig represents user configuration persisted to disk.
