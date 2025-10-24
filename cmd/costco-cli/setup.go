@@ -10,7 +10,7 @@ import (
 
 	"golang.org/x/term"
 
-	"github.com/costco-go/pkg/costco"
+	"github.com/eshaffer321/costco-go/pkg/costco"
 )
 
 func setupCredentials() error {
