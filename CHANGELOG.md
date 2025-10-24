@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.1] - 2025-10-24
+
+### Fixed
+- **GetParentItemNumber() Whitespace Handling**: Fixed bug where `GetParentItemNumber()` returned item numbers with leading/trailing whitespace when Costco's API includes spaces after the slash (e.g., "/ 1857091"). The method now trims whitespace, making item numbers usable for direct lookups without additional processing by consumers.
+
+### Added
+- Test coverage for discount items with whitespace variations in descriptions
+
+[0.3.1]: https://github.com/eshaffer321/costco-go/compare/v0.3.0...v0.3.1
+
 ## [0.3.0] - 2025-10-23
 
 ### Added
