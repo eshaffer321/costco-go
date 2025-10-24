@@ -5,6 +5,27 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.0] - 2025-10-23
+
+### Added
+- **Discount Line Item Helpers**: Added helper methods to identify and process discount line items in receipts
+  - `ReceiptItem.IsDiscount()` - Returns true if the item is a discount/adjustment line item
+  - `ReceiptItem.GetParentItemNumber()` - Returns the item number the discount applies to
+- **Comprehensive Documentation**: Added "Handling Discount Line Items" section to README with:
+  - Explanation of discount item characteristics
+  - Distinction between discounts and returns
+  - Real-world examples and use cases
+  - Code examples for calculating net item amounts
+- **Test Coverage**: Added comprehensive tests for discount helpers including:
+  - Edge case testing (returns, empty descriptions, slash in middle of string)
+  - Real-world data from actual Costco receipts
+  - Workflow tests demonstrating practical usage patterns
+
+### Fixed
+- Clarified that discount amounts are already factored into receipt subtotals to prevent double-counting in consuming applications
+
+[0.3.0]: https://github.com/eshaffer321/costco-go/compare/v0.2.0...v0.3.0
+
 ## [0.2.0] - 2025-10-20
 
 ### Added

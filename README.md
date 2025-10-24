@@ -1,6 +1,6 @@
 # Costco Go Client
 
-[![Version](https://img.shields.io/badge/version-0.2.0-blue.svg)](https://github.com/eshaffer321/costco-go/releases/tag/v0.2.0)
+[![Version](https://img.shields.io/badge/version-0.3.0-blue.svg)](https://github.com/eshaffer321/costco-go/releases/tag/v0.3.0)
 
 A Go client library and CLI for accessing Costco order history and receipt data via their GraphQL API.
 
@@ -272,6 +272,134 @@ The client handles:
 - Tax breakdown
 - Payment information
 - Membership number
+
+## Handling Discount Line Items
+
+Costco's API returns discounts as separate line items in receipts. These discount items have special characteristics that allow you to identify and process them differently from regular items.
+
+### Discount Item Characteristics
+
+Discount line items have:
+- **Negative amount** (e.g., `-4.00`)
+- **Negative unit** (e.g., `-1`)
+- **Description starting with "/"** followed by the parent item number (e.g., `"/1553261"`)
+
+**Important:** The discount amount is already factored into the receipt's `SubTotal`. You should not double-count discounts when calculating totals.
+
+### Distinguishing Discounts from Returns
+
+Return items also have negative amounts, but they differ from discounts:
+- Returns have **normal descriptions** (e.g., "RED GRAPE")
+- Returns appear in receipts with **`TransactionType: "Refund"`**
+- Returns do **NOT** have the "/" prefix in their description
+
+### Helper Methods
+
+The library provides two helper methods to identify and process discount items:
+
+#### IsDiscount()
+
+Returns `true` if a line item is a discount:
+
+```go
+for _, item := range receipt.ItemArray {
+    if item.IsDiscount() {
+        fmt.Printf("Found discount: $%.2f\n", math.Abs(item.Amount))
+        continue
+    }
+    // Process regular items...
+}
+```
+
+#### GetParentItemNumber()
+
+Returns the item number that the discount applies to:
+
+```go
+for _, item := range receipt.ItemArray {
+    if item.IsDiscount() {
+        parentItemNum := item.GetParentItemNumber()
+        fmt.Printf("Discount of $%.2f applies to item %s\n",
+            math.Abs(item.Amount),
+            parentItemNum)
+    }
+}
+```
+
+### Example: Calculating Net Item Amounts
+
+Here's how to build a map of items with discounts applied:
+
+```go
+// Build net amounts map
+itemAmounts := make(map[string]float64)
+itemDescs := make(map[string]string)
+
+for _, item := range receipt.ItemArray {
+    if item.IsDiscount() {
+        // Apply discount to parent item
+        parentNum := item.GetParentItemNumber()
+        itemAmounts[parentNum] += item.Amount
+    } else {
+        // Add regular item
+        itemAmounts[item.ItemNumber] += item.Amount
+        itemDescs[item.ItemNumber] = item.ItemDescription01
+    }
+}
+
+// Now process items with net amounts
+for itemNum, netAmount := range itemAmounts {
+    fmt.Printf("%s: $%.2f\n", itemDescs[itemNum], netAmount)
+}
+```
+
+### Real-World Example
+
+Given this receipt data:
+
+```json
+{
+  "itemArray": [
+    {
+      "itemNumber": "1553261",
+      "itemDescription01": "GUAC BOWL",
+      "amount": 13.99,
+      "unit": 1
+    },
+    {
+      "itemNumber": "363064",
+      "itemDescription01": "/1553261",
+      "amount": -4.00,
+      "unit": -1
+    }
+  ],
+  "subTotal": 9.99,
+  "instantSavings": 4.00
+}
+```
+
+Processing with helpers:
+
+```go
+// Item 1: Regular item
+item1.IsDiscount() // Returns: false
+
+// Item 2: Discount item
+item2.IsDiscount()           // Returns: true
+item2.GetParentItemNumber()  // Returns: "1553261"
+
+// Net amount: 13.99 + (-4.00) = 9.99 (matches subTotal)
+```
+
+### Use Cases
+
+**Budgeting Applications:** Calculate net amounts per item to accurately categorize spending.
+
+**Price Tracking:** Track both original and discounted prices to analyze savings over time.
+
+**Receipt Processing:** Filter out discount line items to avoid confusion when presenting items to users.
+
+**Analytics:** Aggregate `instantSavings` data across receipts to measure total savings.
 
 ## License
 
