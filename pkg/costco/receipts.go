@@ -90,7 +90,8 @@ func (item *ReceiptItem) IsDiscount() bool {
 }
 
 // GetParentItemNumber returns the item number this discount applies to.
-// For discount items with descriptions like "/1553261", this returns "1553261".
+// For discount items with descriptions like "/1553261" or "/ 1857091" (with spaces),
+// this returns "1553261" or "1857091" respectively.
 // Returns empty string if this is not a discount item.
 //
 // Example:
@@ -103,7 +104,7 @@ func (item *ReceiptItem) GetParentItemNumber() string {
 	if !item.IsDiscount() {
 		return ""
 	}
-	return strings.TrimPrefix(item.ItemDescription01, "/")
+	return strings.TrimSpace(strings.TrimPrefix(item.ItemDescription01, "/"))
 }
 
 // Tender represents payment information on a receipt

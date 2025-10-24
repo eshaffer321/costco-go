@@ -148,6 +148,26 @@ func TestReceiptItem_GetParentItemNumber(t *testing.T) {
 			},
 			expected: "",
 		},
+		{
+			name: "discount with whitespace after slash (real-world data)",
+			item: ReceiptItem{
+				ItemNumber:        "363581",
+				ItemDescription01: "/ 1857091", // Space after slash - real Costco data
+				Amount:            -2.90,
+				Unit:              -1,
+			},
+			expected: "1857091", // Should trim whitespace
+		},
+		{
+			name: "discount with multiple spaces after slash",
+			item: ReceiptItem{
+				ItemNumber:        "363582",
+				ItemDescription01: "/  1569515", // Multiple spaces
+				Amount:            -3.50,
+				Unit:              -1,
+			},
+			expected: "1569515", // Should trim all whitespace
+		},
 	}
 
 	for _, tt := range tests {
