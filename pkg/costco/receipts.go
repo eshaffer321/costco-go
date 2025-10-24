@@ -1,5 +1,7 @@
 package costco
 
+import "strings"
+
 // Receipt-related types for Costco warehouse and online receipts
 
 // Receipt represents a single receipt from a Costco transaction
@@ -59,6 +61,49 @@ type ReceiptItem struct {
 	FuelUomDescriptionFr   string  `json:"fuelUomDescriptionFr"`
 	FuelGradeDescription   string  `json:"fuelGradeDescription"`
 	FuelGradeDescriptionFr string  `json:"fuelGradeDescriptionFr"`
+}
+
+// IsDiscount returns true if this line item represents a discount applied to another item.
+// Discount items have:
+//   - Negative amount and negative unit
+//   - Description starting with "/" followed by the parent item number (e.g., "/1553261")
+//
+// Note: Returns (refunds) also have negative amounts but have normal descriptions
+// and appear in receipts with TransactionType: "Refund". This method will return
+// false for return items since they don't have the "/" prefix.
+//
+// Example:
+//
+//	for _, item := range receipt.ItemArray {
+//	    if item.IsDiscount() {
+//	        fmt.Printf("Discount of $%.2f on item %s\n",
+//	            math.Abs(item.Amount),
+//	            item.GetParentItemNumber())
+//	        continue
+//	    }
+//	    // Process regular items...
+//	}
+func (item *ReceiptItem) IsDiscount() bool {
+	return item.Amount < 0 &&
+		item.Unit < 0 &&
+		strings.HasPrefix(item.ItemDescription01, "/")
+}
+
+// GetParentItemNumber returns the item number this discount applies to.
+// For discount items with descriptions like "/1553261", this returns "1553261".
+// Returns empty string if this is not a discount item.
+//
+// Example:
+//
+//	if item.IsDiscount() {
+//	    parentItemNum := item.GetParentItemNumber()
+//	    // Use parentItemNum to find the item this discount applies to
+//	}
+func (item *ReceiptItem) GetParentItemNumber() string {
+	if !item.IsDiscount() {
+		return ""
+	}
+	return strings.TrimPrefix(item.ItemDescription01, "/")
 }
 
 // Tender represents payment information on a receipt

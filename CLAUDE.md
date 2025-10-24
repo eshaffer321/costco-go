@@ -188,6 +188,169 @@ go test ./pkg/costco -v -run TestClientGetOnlineOrders
 - Use structured logging with `log/slog`
 - Add comments for exported functions and types
 
+## Test-Driven Development (TDD)
+
+**⚠️ CRITICAL: This project follows strict Test-Driven Development practices using the Red-Green-Refactor cycle.**
+
+### Red-Green-Refactor Workflow
+
+**ALWAYS write tests BEFORE writing implementation code.** Follow this cycle:
+
+#### 1. 🔴 RED - Write a Failing Test
+
+```bash
+# Write test first
+vim pkg/costco/receipts_test.go
+
+# Run test - it should FAIL
+go test ./pkg/costco -v -run TestReceiptItem_IsDiscount
+# Expected: FAIL (function doesn't exist yet)
+```
+
+**Example:**
+```go
+func TestReceiptItem_IsDiscount(t *testing.T) {
+    item := ReceiptItem{
+        ItemDescription01: "/1553261",
+        Amount:            -4.00,
+        Unit:              -1,
+    }
+
+    // This will fail because IsDiscount() doesn't exist yet
+    assert.True(t, item.IsDiscount())
+}
+```
+
+#### 2. 🟢 GREEN - Write Minimal Code to Pass
+
+```bash
+# Implement just enough to make test pass
+vim pkg/costco/receipts.go
+
+# Run test - it should PASS
+go test ./pkg/costco -v -run TestReceiptItem_IsDiscount
+# Expected: PASS
+```
+
+**Example:**
+```go
+func (item *ReceiptItem) IsDiscount() bool {
+    return item.Amount < 0 &&
+           item.Unit < 0 &&
+           strings.HasPrefix(item.ItemDescription01, "/")
+}
+```
+
+#### 3. 🔵 REFACTOR - Improve Code Quality
+
+```bash
+# Refactor for clarity, performance, or maintainability
+# Tests should still pass
+
+go test ./pkg/costco -v
+# Expected: All tests PASS
+```
+
+### TDD Rules for This Project
+
+1. **NO implementation code without tests first**
+   - ❌ Writing `IsDiscount()` then writing tests
+   - ✅ Writing `TestReceiptItem_IsDiscount` then writing `IsDiscount()`
+
+2. **Tests must fail before they pass**
+   - Verify your test actually catches bugs by seeing it fail first
+   - If a test never fails, it might not be testing anything
+
+3. **Write the simplest code that passes**
+   - Don't over-engineer in the GREEN phase
+   - Add sophistication in the REFACTOR phase if needed
+
+4. **One test at a time**
+   - Write one test case
+   - Make it pass
+   - Move to the next test case
+   - Don't write multiple failing tests at once
+
+5. **Test edge cases**
+   - Happy path (normal usage)
+   - Error cases (invalid input)
+   - Boundary conditions (empty, null, extreme values)
+   - Real-world examples (actual API data)
+
+### Example TDD Session
+
+```bash
+# Add a new method to filter discount items
+# ❌ WRONG: Writing implementation first
+vim pkg/costco/receipts.go  # DON'T DO THIS FIRST!
+
+# ✅ CORRECT: Write test first
+vim pkg/costco/receipts_test.go
+```
+
+**Test (RED):**
+```go
+func TestReceiptItem_IsDiscount_EmptyDescription(t *testing.T) {
+    item := ReceiptItem{
+        ItemDescription01: "",
+        Amount:            -4.00,
+        Unit:              -1,
+    }
+
+    // Should return false - empty string doesn't start with "/"
+    assert.False(t, item.IsDiscount())
+}
+```
+
+Run test: `go test ./pkg/costco -v -run TestReceiptItem_IsDiscount_EmptyDescription`
+Result: ❌ FAIL (or maybe ✅ PASS if implementation handles it)
+
+**Implementation (GREEN):**
+If test fails, update `IsDiscount()` to handle empty strings.
+
+**Refactor (BLUE):**
+Review code for clarity, add documentation, extract common logic.
+
+### Why TDD Matters for This Library
+
+1. **API Contract Validation**: Tests document expected behavior before implementation
+2. **Regression Prevention**: Changing code won't break existing functionality
+3. **Design Feedback**: Hard-to-test code is usually poorly designed
+4. **Confidence**: Green tests mean safe to ship
+5. **Living Documentation**: Tests show how to use the library
+
+### Testing Checklist for PRs
+
+Before submitting a PR, verify:
+
+- [ ] **Tests written BEFORE implementation code**
+- [ ] **All tests pass** (`go test ./pkg/costco -v`)
+- [ ] **Test coverage includes edge cases**
+- [ ] **Real-world data examples in tests** (from actual Costco receipts)
+- [ ] **No implementation code without corresponding tests**
+- [ ] **Code formatted** (`go fmt ./...`)
+
+### When You Can Skip TDD
+
+Only skip the RED phase when:
+- ❌ Never. Always write tests first.
+
+### Test File Organization
+
+```go
+// pkg/costco/receipts_test.go
+
+// 1. Unit tests for individual methods
+func TestReceiptItem_IsDiscount(t *testing.T) { ... }
+func TestReceiptItem_GetParentItemNumber(t *testing.T) { ... }
+
+// 2. Integration tests with real data
+func TestReceiptItem_RealWorldDiscountExample(t *testing.T) { ... }
+
+// 3. Workflow tests showing practical usage
+func TestReceiptItem_ProcessingWorkflow(t *testing.T) { ... }
+```
+
 ## Authentication Details
 
 The client uses Azure AD B2C OAuth2/OIDC flow:
