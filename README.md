@@ -4,6 +4,32 @@
 
 A Go client library and CLI for accessing Costco order history and receipt data via their GraphQL API.
 
+## Table of Contents
+
+- [Project Status](#project-status)
+- [Features](#features)
+- [Prerequisites](#prerequisites)
+- [Installation](#installation)
+- [Security & Disclaimer](#security--disclaimer)
+- [Library Usage](#library-usage)
+- [Logging](#logging)
+- [CLI Usage](#cli-usage)
+- [Running Tests](#running-tests)
+- [API Details](#api-details)
+- [Data Structures](#data-structures)
+- [Handling Discount Line Items](#handling-discount-line-items)
+- [Contributing](#contributing)
+- [Support](#support)
+- [License](#license)
+
+## Project Status
+
+**Status:** Active Development
+
+This library is functional and being actively developed. The API is relatively stable but may change before reaching v1.0.0. All releases follow [Semantic Versioning](https://semver.org/).
+
+**Current version:** 0.3.2
+
 ## Features
 
 - OAuth2 authentication with automatic token refresh
@@ -14,19 +40,44 @@ A Go client library and CLI for accessing Costco order history and receipt data 
 - JSON output support
 - Test-driven development with comprehensive test coverage
 
+## Prerequisites
+
+- **Go 1.21 or higher** - This library uses modern Go features
+- **Active Costco membership** - Required to access the Costco API
+- **Costco.com account** - You must be able to log in to costco.com
+
 ## Installation
 
 Install the latest version:
 
 ```bash
-go get github.com/costco-go/pkg/costco
+go get github.com/eshaffer321/costco-go/pkg/costco
 ```
 
 Or install a specific version:
 
 ```bash
-go get github.com/costco-go/pkg/costco@v0.1.0
+go get github.com/eshaffer321/costco-go/pkg/costco@v0.1.0
 ```
+
+## Security & Disclaimer
+
+**Important Security Considerations:**
+
+- **Credential Storage**: Never hardcode credentials in source code. Use environment variables or secure credential management systems.
+- **Token Security**: Access tokens are stored in memory. Ensure your application follows security best practices for handling authentication tokens.
+- **HTTPS Only**: All API communication uses HTTPS. Do not attempt to use HTTP.
+- **Rate Limiting**: Be respectful of Costco's API. Implement appropriate rate limiting in your applications.
+
+**Disclaimer:**
+
+This is an unofficial client library and is not affiliated with, endorsed by, or connected to Costco Wholesale Corporation. Use of this library is at your own risk. The library interacts with Costco's APIs in the same way as their official website and mobile applications.
+
+**By using this library, you agree to:**
+- Comply with Costco's Terms of Service
+- Use the library only for accessing your own account data
+- Not abuse or overload Costco's systems
+- Take responsibility for securing your credentials
 
 ## Library Usage
 
@@ -39,7 +90,7 @@ import (
     "log"
     "time"
 
-    "github.com/costco-go/pkg/costco"
+    "github.com/eshaffer321/costco-go/pkg/costco"
 )
 
 func main() {
@@ -106,7 +157,7 @@ import (
     "log/slog"
     "os"
 
-    "github.com/costco-go/pkg/costco"
+    "github.com/eshaffer321/costco-go/pkg/costco"
 )
 
 // Create a text logger that outputs to stdout
@@ -401,6 +452,58 @@ item2.GetParentItemNumber()  // Returns: "1553261"
 
 **Analytics:** Aggregate `instantSavings` data across receipts to measure total savings.
 
+## Contributing
+
+Contributions are welcome! This project follows strict development practices:
+
+### Development Workflow
+
+1. **Fork the repository** and create a feature branch
+2. **Follow Test-Driven Development (TDD)**: Write tests before implementation
+3. **Version Bumping**: Every code change requires a version bump (see CLAUDE.md)
+   - Bug fixes → PATCH version
+   - New features → MINOR version
+   - Breaking changes → MAJOR version
+4. **Run tests**: Ensure all tests pass with `go test ./pkg/costco -v`
+5. **Format code**: Run `go fmt ./...` before committing
+6. **Update documentation**: Update README.md and CHANGELOG.md
+7. **Submit a Pull Request** with a clear description of changes
+
+### Code Quality Standards
+
+- Write comprehensive tests with real-world examples
+- Follow Go best practices and idioms
+- Add comments for exported functions and types
+- Use structured logging with `log/slog`
+- Ensure thread-safety for concurrent operations
+
+### Before Submitting a PR
+
+- [ ] Tests pass locally
+- [ ] Code is formatted with `gofmt`
+- [ ] CHANGELOG.md is updated
+- [ ] Version is bumped in `pkg/costco/constants.go`
+- [ ] README.md is updated (if applicable)
+- [ ] No credentials or sensitive data in commits
+
+For detailed development guidelines, see [CLAUDE.md](CLAUDE.md).
+
+## Support
+
+### Questions & Issues
+
+- **Bug Reports**: Open an issue on [GitHub Issues](https://github.com/eshaffer321/costco-go/issues)
+- **Feature Requests**: Open an issue with the "enhancement" label
+- **Questions**: Check existing issues or open a new discussion
+
+### Maintainer
+
+This project is maintained by [@eshaffer321](https://github.com/eshaffer321).
+
+**Response Time**: Issues and PRs are typically reviewed within a few days. This is a side project, so please be patient.
+
 ## License
 
-MIT
+MIT License - see the [LICENSE](LICENSE) file for details.
+
+Copyright (c) 2025 eshaffer321
