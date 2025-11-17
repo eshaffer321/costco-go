@@ -150,103 +150,432 @@ func TestGetAllTransactionItems(t *testing.T) {
 }
 
 func TestGetFrequentItems(t *testing.T) {
-	// Test the frequency calculation logic directly
-	transactions := []TransactionWithItems{
-		{
-			TransactionBarcode: "123",
-			TransactionDate:    time.Now(),
-			Items: []ReceiptItem{
-				{ItemNumber: "ITEM1", ItemDescription01: "Item One", Unit: 2, Amount: 10.00},
-				{ItemNumber: "ITEM2", ItemDescription01: "Item Two", Unit: 1, Amount: 5.00},
-			},
-		},
-		{
-			TransactionBarcode: "456",
-			TransactionDate:    time.Now(),
-			Items: []ReceiptItem{
-				{ItemNumber: "ITEM1", ItemDescription01: "Item One", Unit: 3, Amount: 15.00},
-				{ItemNumber: "ITEM3", ItemDescription01: "Item Three", Unit: 1, Amount: 8.00},
-			},
-		},
-	}
+	cleanup := SetupTestConfig(t)
+	defer cleanup()
 
-	// Test the frequency calculation logic
-	itemMap := make(map[string]*struct {
-		ItemNumber      string
-		ItemDescription string
-		TotalQuantity   int
-		TotalSpent      float64
-		PurchaseCount   int
-	})
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/oauth2/v2.0/token" {
+			resp := TokenResponse{
+				IDToken:               generateTestJWT(time.Now().Add(1 * time.Hour).Unix()),
+				TokenType:             "Bearer",
+				RefreshToken:          "test-refresh-token",
+				RefreshTokenExpiresIn: 7776000,
+			}
+			w.Header().Set("Content-Type", "application/json")
+			json.NewEncoder(w).Encode(resp)
+			return
+		}
 
-	for _, tx := range transactions {
-		for _, item := range tx.Items {
-			if stats, exists := itemMap[item.ItemNumber]; exists {
-				stats.TotalQuantity += item.Unit
-				stats.TotalSpent += item.Amount
-				stats.PurchaseCount++
-			} else {
-				itemMap[item.ItemNumber] = &struct {
-					ItemNumber      string
-					ItemDescription string
-					TotalQuantity   int
-					TotalSpent      float64
-					PurchaseCount   int
-				}{
-					ItemNumber:      item.ItemNumber,
-					ItemDescription: item.ItemDescription01,
-					TotalQuantity:   item.Unit,
-					TotalSpent:      item.Amount,
-					PurchaseCount:   1,
+		if r.URL.Path == "/graphql" {
+			var req GraphQLRequest
+			err := json.NewDecoder(r.Body).Decode(&req)
+			require.NoError(t, err)
+
+			if req.Query == ReceiptsQuery {
+				resp := map[string]interface{}{
+					"data": map[string]interface{}{
+						"receiptsWithCounts": map[string]interface{}{
+							"inWarehouse": 2,
+							"receipts": []map[string]interface{}{
+								{
+									"warehouseName":       "TEST",
+									"transactionDateTime": "2025-01-01T10:00:00",
+									"transactionBarcode":  "123",
+									"total":               100.00,
+									"totalItemCount":      3,
+								},
+								{
+									"warehouseName":       "TEST",
+									"transactionDateTime": "2025-01-02T10:00:00",
+									"transactionBarcode":  "456",
+									"total":               50.00,
+									"totalItemCount":      2,
+								},
+							},
+						},
+					},
 				}
+				w.Header().Set("Content-Type", "application/json")
+				json.NewEncoder(w).Encode(resp)
+			} else if req.Query == ReceiptDetailQuery {
+				barcode := req.Variables["barcode"].(string)
+				var items []map[string]interface{}
+
+				if barcode == "123" {
+					items = []map[string]interface{}{
+						{
+							"itemNumber":           "ITEM1",
+							"itemDescription01":    "Item One",
+							"unit":                 2,
+							"amount":               10.00,
+							"itemDepartmentNumber": 1,
+						},
+						{
+							"itemNumber":           "ITEM2",
+							"itemDescription01":    "Item Two",
+							"unit":                 1,
+							"amount":               5.00,
+							"itemDepartmentNumber": 2,
+						},
+					}
+				} else {
+					items = []map[string]interface{}{
+						{
+							"itemNumber":           "ITEM1",
+							"itemDescription01":    "Item One",
+							"unit":                 3,
+							"amount":               15.00,
+							"itemDepartmentNumber": 1,
+						},
+						{
+							"itemNumber":           "ITEM3",
+							"itemDescription01":    "Item Three",
+							"unit":                 1,
+							"amount":               8.00,
+							"itemDepartmentNumber": 3,
+						},
+					}
+				}
+
+				resp := map[string]interface{}{
+					"data": map[string]interface{}{
+						"receiptsWithCounts": map[string]interface{}{
+							"receipts": []map[string]interface{}{
+								{
+									"warehouseName":       "TEST",
+									"transactionDateTime": "2025-01-01T10:00:00",
+									"transactionBarcode":  barcode,
+									"total":               100.00,
+									"membershipNumber":    "111222333",
+									"itemArray":           items,
+								},
+							},
+						},
+					},
+				}
+				w.Header().Set("Content-Type", "application/json")
+				json.NewEncoder(w).Encode(resp)
 			}
 		}
+	}))
+	defer server.Close()
+
+	client := &Client{
+		httpClient: &http.Client{
+			Transport: &testTransport{
+				baseURL: server.URL,
+			},
+		},
+		config: Config{
+			Email:              "test@example.com",
+			Password:           "password123",
+			WarehouseNumber:    "847",
+			TokenRefreshBuffer: 5 * time.Minute,
+		},
 	}
 
-	assert.Len(t, itemMap, 3)
-	assert.Equal(t, 5, itemMap["ITEM1"].TotalQuantity)
-	assert.Equal(t, 25.00, itemMap["ITEM1"].TotalSpent)
-	assert.Equal(t, 2, itemMap["ITEM1"].PurchaseCount)
+	// Test with no limit (return all)
+	items, err := client.GetFrequentItems(context.Background(), "2025-01-01", "2025-01-31", 0)
+	require.NoError(t, err)
+
+	assert.Len(t, items, 3)
+	// ITEM1 should be most frequent (appears in 2 transactions)
+	assert.Equal(t, "ITEM1", items[0].ItemNumber)
+	assert.Equal(t, "Item One", items[0].ItemDescription)
+	assert.Equal(t, 2, items[0].PurchaseCount)
+	assert.Equal(t, 5, items[0].TotalQuantity)
+	assert.Equal(t, 25.00, items[0].TotalSpent)
+
+	// Test with limit
+	limitedItems, err := client.GetFrequentItems(context.Background(), "2025-01-01", "2025-01-31", 2)
+	require.NoError(t, err)
+	assert.Len(t, limitedItems, 2)
 }
 
 func TestGetSpendingSummary(t *testing.T) {
-	transactions := []TransactionWithItems{
-		{
-			TransactionBarcode: "123",
-			Items: []ReceiptItem{
-				{ItemDepartmentNumber: 1, Amount: 10.00, Unit: 2},
-				{ItemDepartmentNumber: 2, Amount: 20.00, Unit: 1},
-			},
-		},
-		{
-			TransactionBarcode: "456",
-			Items: []ReceiptItem{
-				{ItemDepartmentNumber: 1, Amount: 15.00, Unit: 1},
-				{ItemDepartmentNumber: 3, Amount: 30.00, Unit: 2},
-			},
-		},
-	}
+	cleanup := SetupTestConfig(t)
+	defer cleanup()
 
-	summary := make(map[int]struct {
-		Department string
-		Total      float64
-		ItemCount  int
-	})
-
-	for _, tx := range transactions {
-		for _, item := range tx.Items {
-			dept := item.ItemDepartmentNumber
-			current := summary[dept]
-			current.Department = "Department " + string(rune(dept+'0'))
-			current.Total += item.Amount
-			current.ItemCount += item.Unit
-			summary[dept] = current
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/oauth2/v2.0/token" {
+			resp := TokenResponse{
+				IDToken:               generateTestJWT(time.Now().Add(1 * time.Hour).Unix()),
+				TokenType:             "Bearer",
+				RefreshToken:          "test-refresh-token",
+				RefreshTokenExpiresIn: 7776000,
+			}
+			w.Header().Set("Content-Type", "application/json")
+			json.NewEncoder(w).Encode(resp)
+			return
 		}
+
+		if r.URL.Path == "/graphql" {
+			var req GraphQLRequest
+			err := json.NewDecoder(r.Body).Decode(&req)
+			require.NoError(t, err)
+
+			if req.Query == ReceiptsQuery {
+				resp := map[string]interface{}{
+					"data": map[string]interface{}{
+						"receiptsWithCounts": map[string]interface{}{
+							"inWarehouse": 2,
+							"receipts": []map[string]interface{}{
+								{
+									"warehouseName":       "TEST",
+									"transactionDateTime": "2025-01-01T10:00:00",
+									"transactionBarcode":  "123",
+									"total":               30.00,
+									"totalItemCount":      2,
+								},
+								{
+									"warehouseName":       "TEST",
+									"transactionDateTime": "2025-01-02T10:00:00",
+									"transactionBarcode":  "456",
+									"total":               45.00,
+									"totalItemCount":      2,
+								},
+							},
+						},
+					},
+				}
+				w.Header().Set("Content-Type", "application/json")
+				json.NewEncoder(w).Encode(resp)
+			} else if req.Query == ReceiptDetailQuery {
+				barcode := req.Variables["barcode"].(string)
+				var items []map[string]interface{}
+
+				if barcode == "123" {
+					items = []map[string]interface{}{
+						{
+							"itemNumber":           "ITEM1",
+							"itemDescription01":    "Item One",
+							"unit":                 2,
+							"amount":               10.00,
+							"itemDepartmentNumber": 1,
+						},
+						{
+							"itemNumber":           "ITEM2",
+							"itemDescription01":    "Item Two",
+							"unit":                 1,
+							"amount":               20.00,
+							"itemDepartmentNumber": 2,
+						},
+					}
+				} else {
+					items = []map[string]interface{}{
+						{
+							"itemNumber":           "ITEM3",
+							"itemDescription01":    "Item Three",
+							"unit":                 1,
+							"amount":               15.00,
+							"itemDepartmentNumber": 1,
+						},
+						{
+							"itemNumber":           "ITEM4",
+							"itemDescription01":    "Item Four",
+							"unit":                 2,
+							"amount":               30.00,
+							"itemDepartmentNumber": 3,
+						},
+					}
+				}
+
+				resp := map[string]interface{}{
+					"data": map[string]interface{}{
+						"receiptsWithCounts": map[string]interface{}{
+							"receipts": []map[string]interface{}{
+								{
+									"warehouseName":       "TEST",
+									"transactionDateTime": "2025-01-01T10:00:00",
+									"transactionBarcode":  barcode,
+									"total":               100.00,
+									"membershipNumber":    "111222333",
+									"itemArray":           items,
+								},
+							},
+						},
+					},
+				}
+				w.Header().Set("Content-Type", "application/json")
+				json.NewEncoder(w).Encode(resp)
+			}
+		}
+	}))
+	defer server.Close()
+
+	client := &Client{
+		httpClient: &http.Client{
+			Transport: &testTransport{
+				baseURL: server.URL,
+			},
+		},
+		config: Config{
+			Email:              "test@example.com",
+			Password:           "password123",
+			WarehouseNumber:    "847",
+			TokenRefreshBuffer: 5 * time.Minute,
+		},
 	}
+
+	summary, err := client.GetSpendingSummary(context.Background(), "2025-01-01", "2025-01-31")
+	require.NoError(t, err)
 
 	assert.Len(t, summary, 3)
+	assert.Equal(t, "Department 1", summary[1].Department)
 	assert.Equal(t, 25.00, summary[1].Total)
 	assert.Equal(t, 3, summary[1].ItemCount)
+
+	assert.Equal(t, "Department 2", summary[2].Department)
 	assert.Equal(t, 20.00, summary[2].Total)
+	assert.Equal(t, 1, summary[2].ItemCount)
+
+	assert.Equal(t, "Department 3", summary[3].Department)
 	assert.Equal(t, 30.00, summary[3].Total)
+	assert.Equal(t, 2, summary[3].ItemCount)
+}
+
+func TestGetItemHistory(t *testing.T) {
+	cleanup := SetupTestConfig(t)
+	defer cleanup()
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/oauth2/v2.0/token" {
+			resp := TokenResponse{
+				IDToken:               generateTestJWT(time.Now().Add(1 * time.Hour).Unix()),
+				TokenType:             "Bearer",
+				RefreshToken:          "test-refresh-token",
+				RefreshTokenExpiresIn: 7776000,
+			}
+			w.Header().Set("Content-Type", "application/json")
+			json.NewEncoder(w).Encode(resp)
+			return
+		}
+
+		if r.URL.Path == "/graphql" {
+			var req GraphQLRequest
+			err := json.NewDecoder(r.Body).Decode(&req)
+			require.NoError(t, err)
+
+			if req.Query == ReceiptsQuery {
+				resp := map[string]interface{}{
+					"data": map[string]interface{}{
+						"receiptsWithCounts": map[string]interface{}{
+							"inWarehouse": 2,
+							"receipts": []map[string]interface{}{
+								{
+									"warehouseName":       "TEST",
+									"transactionDateTime": "2025-01-01T10:00:00",
+									"transactionBarcode":  "123",
+									"total":               30.00,
+									"totalItemCount":      2,
+								},
+								{
+									"warehouseName":       "TEST",
+									"transactionDateTime": "2025-01-15T14:30:00",
+									"transactionBarcode":  "456",
+									"total":               45.00,
+									"totalItemCount":      2,
+								},
+							},
+						},
+					},
+				}
+				w.Header().Set("Content-Type", "application/json")
+				json.NewEncoder(w).Encode(resp)
+			} else if req.Query == ReceiptDetailQuery {
+				barcode := req.Variables["barcode"].(string)
+				var items []map[string]interface{}
+
+				if barcode == "123" {
+					items = []map[string]interface{}{
+						{
+							"itemNumber":           "ITEM1",
+							"itemDescription01":    "Organic Milk",
+							"unit":                 2,
+							"amount":               10.00,
+							"itemDepartmentNumber": 1,
+						},
+						{
+							"itemNumber":           "ITEM2",
+							"itemDescription01":    "Bread",
+							"unit":                 1,
+							"amount":               5.00,
+							"itemDepartmentNumber": 2,
+						},
+					}
+				} else {
+					items = []map[string]interface{}{
+						{
+							"itemNumber":           "ITEM1",
+							"itemDescription01":    "Organic Milk",
+							"unit":                 3,
+							"amount":               15.00,
+							"itemDepartmentNumber": 1,
+						},
+						{
+							"itemNumber":           "ITEM3",
+							"itemDescription01":    "Eggs",
+							"unit":                 2,
+							"amount":               8.00,
+							"itemDepartmentNumber": 1,
+						},
+					}
+				}
+
+				resp := map[string]interface{}{
+					"data": map[string]interface{}{
+						"receiptsWithCounts": map[string]interface{}{
+							"receipts": []map[string]interface{}{
+								{
+									"warehouseName":       "TEST",
+									"transactionDateTime": "2025-01-01T10:00:00",
+									"transactionBarcode":  barcode,
+									"total":               100.00,
+									"membershipNumber":    "111222333",
+									"itemArray":           items,
+								},
+							},
+						},
+					},
+				}
+				w.Header().Set("Content-Type", "application/json")
+				json.NewEncoder(w).Encode(resp)
+			}
+		}
+	}))
+	defer server.Close()
+
+	client := &Client{
+		httpClient: &http.Client{
+			Transport: &testTransport{
+				baseURL: server.URL,
+			},
+		},
+		config: Config{
+			Email:              "test@example.com",
+			Password:           "password123",
+			WarehouseNumber:    "847",
+			TokenRefreshBuffer: 5 * time.Minute,
+		},
+	}
+
+	// Get history for ITEM1 which appears in both transactions
+	history, err := client.GetItemHistory(context.Background(), "ITEM1", "2025-01-01", "2025-01-31")
+	require.NoError(t, err)
+
+	assert.Len(t, history, 2)
+	assert.Equal(t, "2025-01-01", history[0].Date)
+	assert.Equal(t, 2, history[0].Quantity)
+	assert.Equal(t, 10.00, history[0].Price)
+	assert.Equal(t, "123", history[0].Barcode)
+
+	assert.Equal(t, "2025-01-01", history[1].Date) // Mock returns same date for all receipts
+	assert.Equal(t, 3, history[1].Quantity)
+	assert.Equal(t, 15.00, history[1].Price)
+	assert.Equal(t, "456", history[1].Barcode)
+
+	// Get history for item that doesn't exist
+	emptyHistory, err := client.GetItemHistory(context.Background(), "NONEXISTENT", "2025-01-01", "2025-01-31")
+	require.NoError(t, err)
+	assert.Empty(t, emptyHistory)
 }
