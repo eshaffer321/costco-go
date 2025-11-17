@@ -61,10 +61,10 @@ func TestSaveAndLoadTokens(t *testing.T) {
 	expiry := time.Now().Add(1 * time.Hour)
 	refreshExpiry := time.Now().Add(30 * 24 * time.Hour)
 	tokens := &StoredTokens{
-		IDToken:                "test-id-token",
-		RefreshToken:           "test-refresh-token",
-		TokenExpiry:            expiry,
-		RefreshTokenExpiresAt:  refreshExpiry,
+		IDToken:               "test-id-token",
+		RefreshToken:          "test-refresh-token",
+		TokenExpiry:           expiry,
+		RefreshTokenExpiresAt: refreshExpiry,
 	}
 
 	err := SaveTokens(tokens)
