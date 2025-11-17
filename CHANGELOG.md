@@ -5,6 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.2] - 2025-11-17
+
+### Added
+- **Comprehensive Test Coverage**: Significantly increased test coverage from 62.8% to 82.8%
+  - Added integration tests for analytics functions (`GetItemHistory`, `GetSpendingSummary`, `GetFrequentItems`) - now calling actual client methods instead of testing logic inline
+  - Added comprehensive tests for config persistence functions (`SaveConfig`, `LoadConfig`, `SaveTokens`, `LoadTokens`, `ClearTokens`, `GetConfigInfo`)
+  - New test file `config_persistence_test.go` with 11 test cases covering config file operations, token management, and edge cases
+  - Tests now cover file permissions, JSON validation, non-existent files, and expired tokens
+
+### Changed
+- **Improved Test Quality**: Rewrote existing analytics tests to call actual client methods, ensuring real-world usage patterns are tested
+
+[0.3.2]: https://github.com/eshaffer321/costco-go/compare/v0.3.1...v0.3.2
+
 ## [0.3.1] - 2025-10-24
 
 ### Fixed
