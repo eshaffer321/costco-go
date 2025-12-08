@@ -346,7 +346,7 @@ func (t *testTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 	// Replace the host with our test server
 	testURL := t.baseURL
 	switch req.URL.Path {
-	case "/e0714dd4-784d-46d6-a278-3e29553483eb/b2c_1a_sso_wcs_signup_signin_157/oauth2/v2.0/token":
+	case "/e0714dd4-784d-46d6-a278-3e29553483eb/b2c_1a_sso_wcs_signup_signin_184/oauth2/v2.0/token":
 		testURL += "/oauth2/v2.0/token"
 	case "/ebusiness/order/v1/orders/graphql":
 		testURL += "/graphql"

@@ -1,6 +1,6 @@
 # Costco Go Client
 
-[![Version](https://img.shields.io/badge/version-0.3.2-blue.svg)](https://github.com/eshaffer321/costco-go/releases/tag/v0.3.2)
+[![Version](https://img.shields.io/badge/version-0.3.3-blue.svg)](https://github.com/eshaffer321/costco-go/releases/tag/v0.3.3)
 
 A Go client library and CLI for accessing Costco order history and receipt data via their GraphQL API.
 
