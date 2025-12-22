@@ -62,14 +62,13 @@ func NewClient(config Config) *Client {
 		config.TokenRefreshBuffer = 5 * time.Minute
 	}
 
-	// Initialize logger with no-op logger if not provided
+	// Use provided logger or no-op logger if none provided
+	// Note: Caller is responsible for adding any scoping attributes (e.g., system="costco")
 	logger := config.Logger
 	if logger == nil {
 		// Use a no-op logger that discards all output
 		logger = slog.New(slog.NewTextHandler(io.Discard, nil))
 	}
-	// Add "client=costco" attribute to all log messages
-	logger = logger.With(slog.String("client", "costco"))
 
 	client := &Client{
 		httpClient: &http.Client{
