@@ -426,11 +426,10 @@ func TestClientWithLogger(t *testing.T) {
 	// Perform an operation that should log
 	_, _ = client.GetOnlineOrders(context.Background(), "2025-01-01", "2025-01-31", 1, 10)
 
-	// Verify logs were captured
+	// Verify logs were captured (logger scoping is now caller's responsibility)
 	output := buf.String()
 	assert.NotEmpty(t, output, "Expected log output to be captured")
 	assert.Contains(t, output, "fetching online orders", "Expected 'fetching online orders' log message")
-	assert.Contains(t, output, "client=costco", "Expected 'client=costco' attribute in logs")
 }
 
 func TestClientWithoutLogger(t *testing.T) {
@@ -576,7 +575,7 @@ func TestClientLoggerWithJSON(t *testing.T) {
 	output := buf.String()
 	assert.NotEmpty(t, output, "Expected JSON log output")
 
-	// Parse each line as JSON to verify it's valid JSON
+	// Parse each line as JSON to verify it's valid JSON (logger scoping is now caller's responsibility)
 	lines := strings.Split(strings.TrimSpace(output), "\n")
 	for _, line := range lines {
 		if line == "" {
@@ -585,7 +584,8 @@ func TestClientLoggerWithJSON(t *testing.T) {
 		var logEntry map[string]interface{}
 		err := json.Unmarshal([]byte(line), &logEntry)
 		assert.NoError(t, err, "Each log line should be valid JSON")
-		assert.Contains(t, logEntry, "client", "Log entry should contain 'client' field")
-		assert.Equal(t, "costco", logEntry["client"], "Client field should be 'costco'")
+		// Verify standard log fields exist
+		assert.Contains(t, logEntry, "msg", "Log entry should contain 'msg' field")
+		assert.Contains(t, logEntry, "level", "Log entry should contain 'level' field")
 	}
 }
