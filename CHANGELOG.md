@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.7] - 2026-04-23
+
+### Fixed
+- **Version Drift**: Sync `constants.go` and `README.md` badge to `0.3.7` — both were missed during the `v0.3.6` re-tag and still reported `0.3.5`.
+- **go.mod**: Promoted `golang.org/x/term` from indirect to direct dependency.
+
+### Added
+- **CI Version Gate**: New `version-consistency` CI job that fails if `constants.go`, `CHANGELOG.md`, and the `README.md` badge don't all report the same version, preventing this class of drift in the future.
+
+[0.3.7]: https://github.com/eshaffer321/costco-go/compare/v0.3.6...v0.3.7
+
 ## [0.3.6] - 2026-04-23
 
 ### Fixed
