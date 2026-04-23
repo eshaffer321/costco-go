@@ -1,5 +1,5 @@
 # Binaries
-costco-cli
+/costco-cli
 *.exe
 *.dll
 *.so

@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.8] - 2026-04-23
+
+### Added
+- **`costco-cli -cmd import-token`**: New CLI command to bootstrap authentication by pasting the JSON response from the Costco token endpoint. Eliminates the need to manually edit `~/.costco/tokens.json`. See README for instructions.
+- **`ImportTokenResponse()`**: New exported library function that converts a `TokenResponse` into `StoredTokens`, parsing the JWT expiry and calculating refresh token expiry from `refresh_token_expires_in`.
+
+[0.3.8]: https://github.com/eshaffer321/costco-go/compare/v0.3.7...v0.3.8
+
 ## [0.3.7] - 2026-04-23
 
 ### Fixed
