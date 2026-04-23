@@ -17,7 +17,7 @@ import (
 
 func main() {
 	var (
-		command    = flag.String("cmd", "", "Command: setup, info, orders, receipts, receipt-detail")
+		command    = flag.String("cmd", "", "Command: setup, import-token, info, orders, receipts, receipt-detail")
 		startDate  = flag.String("start", "", "Start date (YYYY-MM-DD)")
 		endDate    = flag.String("end", "", "End date (YYYY-MM-DD)")
 		barcode    = flag.String("barcode", "", "Receipt barcode (for receipt-detail)")
@@ -31,6 +31,13 @@ func main() {
 	// Handle setup and info commands first
 	if *command == "setup" {
 		if err := setupCredentials(); err != nil {
+			log.Fatal(err)
+		}
+		return
+	}
+
+	if *command == "import-token" {
+		if err := importTokens(); err != nil {
 			log.Fatal(err)
 		}
 		return
