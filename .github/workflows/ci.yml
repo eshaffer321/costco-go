@@ -39,6 +39,11 @@ jobs:
       - name: Verify dependencies
         run: go mod verify
 
+      - name: Check go.mod and go.sum are tidy
+        run: |
+          go mod tidy
+          git diff --exit-code go.mod go.sum
+
       - name: Run tests with coverage
         run: go test -v -race -coverprofile=coverage.txt -covermode=atomic ./...
 
