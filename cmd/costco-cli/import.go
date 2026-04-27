@@ -26,7 +26,7 @@ func importTokens() error {
 	}
 
 	var resp costco.TokenResponse
-	if err := json.Unmarshal(data, &resp); err != nil {
+	if err = json.Unmarshal(data, &resp); err != nil {
 		return fmt.Errorf("parsing JSON: %w\n\nMake sure you copied the Response body (not the Headers)", err)
 	}
 
@@ -35,7 +35,7 @@ func importTokens() error {
 		return err
 	}
 
-	if err := costco.SaveTokens(tokens); err != nil {
+	if err = costco.SaveTokens(tokens); err != nil {
 		return fmt.Errorf("saving tokens: %w", err)
 	}
 
