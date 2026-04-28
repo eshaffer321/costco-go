@@ -91,3 +91,20 @@ func TestImportTokenResponse_MalformedJWTFallsBackToDefault(t *testing.T) {
 	// Should fall back to a short default expiry, not zero time
 	assert.True(t, tokens.TokenExpiry.After(time.Now()))
 }
+
+func TestImportTokenResponse_JWTWithoutExpFallsBackToDefault(t *testing.T) {
+	// Valid JWT structure but payload has no exp claim
+	header := base64.RawURLEncoding.EncodeToString([]byte(`{"alg":"RS256","typ":"JWT"}`))
+	payload := base64.RawURLEncoding.EncodeToString([]byte(`{"sub":"user123"}`))
+	noExpJWT := header + "." + payload + ".fakesignature"
+
+	resp := &TokenResponse{
+		IDToken:               noExpJWT,
+		RefreshToken:          "my-refresh-token",
+		RefreshTokenExpiresIn: 7776000,
+	}
+
+	tokens, err := ImportTokenResponse(resp)
+	require.NoError(t, err)
+	assert.True(t, tokens.TokenExpiry.After(time.Now()))
+}

@@ -37,7 +37,7 @@ func main() {
 	}
 
 	if *command == "import-token" {
-		if err := importTokens(); err != nil {
+		if err := runImportTokens(); err != nil {
 			log.Fatal(err)
 		}
 		return
