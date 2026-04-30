@@ -1,6 +1,6 @@
 # Costco Go Client
 
-[![Version](https://img.shields.io/badge/version-0.3.7-blue.svg)](https://github.com/eshaffer321/costco-go/releases/tag/v0.3.7)
+[![Version](https://img.shields.io/badge/version-0.3.8-blue.svg)](https://github.com/eshaffer321/costco-go/releases/tag/v0.3.8)
 
 A Go client library and CLI for accessing Costco order history and receipt data via their GraphQL API.
 
@@ -176,16 +176,42 @@ Every log message includes a `client=costco` attribute for easy identification i
 ### Build the CLI
 
 ```bash
-go build -o costco-cli cmd/costco-cli/main.go
+go build -o costco-cli ./cmd/costco-cli
 ```
 
-### Set credentials via environment variables
+### Authentication Setup
+
+Authentication requires a valid token from Costco's OAuth2 endpoint. Tokens are stored in `~/.costco/tokens.json` and automatically refreshed (refresh tokens are valid for ~90 days).
+
+**Step 1 — Store your email and warehouse number:**
 
 ```bash
-export COSTCO_EMAIL="your-email@example.com"
-export COSTCO_PASSWORD="your-password"
-export COSTCO_WAREHOUSE="847"  # Optional, defaults to 847
+./costco-cli -cmd setup
 ```
+
+**Step 2 — Import a token from your browser:**
+
+```bash
+./costco-cli -cmd import-token
+```
+
+Then paste the JSON response body when prompted. To get it:
+
+1. Log in to [costco.com](https://www.costco.com) in your browser
+2. Open DevTools → Network tab → filter by **Fetch/XHR**
+3. Search for **"token"** and select the request to the token endpoint
+4. Click the **Response** tab and copy the full JSON body
+5. Paste it into the terminal and press **Ctrl+D**
+
+The command will confirm the token was saved and show the expiry times:
+
+```
+✓ Tokens saved to ~/.costco/tokens.json
+  ID token valid until:      2026-04-23 14:53:00 MDT
+  Refresh token valid until: 2026-07-22 14:38:00 MDT
+```
+
+Once tokens are saved, all CLI commands work without any further authentication steps. When the refresh token expires (~90 days), repeat Step 2.
 
 ### Get online orders
 
@@ -228,13 +254,10 @@ export COSTCO_WAREHOUSE="847"  # Optional, defaults to 847
 
 ### CLI Flags
 
-- `-email`: Costco account email (overrides COSTCO_EMAIL env var)
-- `-password`: Costco account password (overrides COSTCO_PASSWORD env var)
-- `-warehouse`: Warehouse number (overrides COSTCO_WAREHOUSE env var, default: 847)
-- `-cmd`: Command to run: `orders`, `receipts`, or `receipt-detail`
+- `-cmd`: Command to run: `setup`, `import-token`, `info`, `orders`, `receipts`, `receipt-detail`
 - `-start`: Start date in YYYY-MM-DD format
 - `-end`: End date in YYYY-MM-DD format
-- `-barcode`: Receipt barcode (required for receipt-detail command)
+- `-barcode`: Receipt barcode (required for `receipt-detail`)
 - `-page`: Page number for orders (default: 1)
 - `-size`: Page size for orders (default: 10)
 - `-json`: Output results as JSON
@@ -254,10 +277,11 @@ The client uses Costco's OAuth2 authentication flow and GraphQL API:
 - **Auth header**: `costco-x-authorization: Bearer {id_token}`
 
 The client handles:
-- Initial authentication with email/password
-- Automatic token refresh before expiry
+- Automatic token refresh before expiry (tokens stored in `~/.costco/tokens.json`)
 - Thread-safe token management
 - GraphQL query construction and response parsing
+
+Bootstrap tokens using `costco-cli -cmd import-token` — see [Authentication Setup](#authentication-setup) above.
 
 ## Data Structures
 
