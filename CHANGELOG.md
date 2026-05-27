@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.9] - 2026-05-26
+
+### Added
+- **`NetDiscounts(items []ReceiptItem) ([]ReceiptItem, []ReceiptItem)`**: New exported utility function that applies Costco discount line items to their parent items using a three-level matching strategy: (1) exact item-number match, (2) exact description match (case-insensitive), (3) substring/contains match. Returns the netted regular items and any orphaned discounts that could not be matched. Fixes the case where a coupon references a parent by a partial description token (e.g. `/AAA BATTERY`) that does not exactly match the parent's full description (e.g. `AA/AAA BATTERY`).
+
+[0.3.9]: https://github.com/eshaffer321/costco-go/compare/v0.3.8...v0.3.9
+
 ## [0.3.8] - 2026-04-23
 
 ### Added

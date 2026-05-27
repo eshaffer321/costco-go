@@ -282,3 +282,84 @@ func TestReceiptItem_ProcessingWorkflow(t *testing.T) {
 	}
 	assert.Equal(t, receipt.SubTotal, total, "Sum of net amounts should equal receipt subtotal")
 }
+
+func TestNetDiscounts(t *testing.T) {
+	t.Run("applies discount via item number match", func(t *testing.T) {
+		items := []ReceiptItem{
+			{ItemNumber: "1553261", ItemDescription01: "GUAC BOWL", Amount: 13.99, Unit: 1},
+			{ItemNumber: "363064", ItemDescription01: "/1553261", Amount: -4.00, Unit: -1},
+		}
+		netted, orphaned := NetDiscounts(items)
+		assert.Len(t, netted, 1)
+		assert.Len(t, orphaned, 0)
+		assert.Equal(t, 9.99, netted[0].Amount)
+		assert.Equal(t, "GUAC BOWL", netted[0].ItemDescription01)
+	})
+
+	t.Run("applies discount via exact description match", func(t *testing.T) {
+		// discount's ItemDescription01 is "/AAA BATTERY" → ref is "AAA BATTERY"
+		// parent item description is exactly "AAA BATTERY"
+		items := []ReceiptItem{
+			{ItemNumber: "379938", ItemDescription01: "AAA BATTERY", Amount: 14.99, Unit: 1},
+			{ItemNumber: "999001", ItemDescription01: "/AAA BATTERY", Amount: -2.50, Unit: -1},
+		}
+		netted, orphaned := NetDiscounts(items)
+		assert.Len(t, netted, 1)
+		assert.Len(t, orphaned, 0)
+		assert.Equal(t, 12.49, netted[0].Amount)
+	})
+
+	t.Run("applies discount via partial description match", func(t *testing.T) {
+		// Real receipts: parent item is "AA/AAA BATTERY" but coupon references "/AAA BATTERY".
+		// Neither item-number nor exact-description lookup succeeds; substring fallback must fire.
+		items := []ReceiptItem{
+			{ItemNumber: "379938", ItemDescription01: "AA/AAA BATTERY", Amount: 14.99, Unit: 1},
+			{ItemNumber: "999001", ItemDescription01: "/AAA BATTERY", Amount: -2.50, Unit: -1},
+		}
+		netted, orphaned := NetDiscounts(items)
+		assert.Len(t, netted, 1, "should have 1 item after netting partial-description-referenced discount")
+		assert.Len(t, orphaned, 0, "discount should be matched, not orphaned")
+		assert.Equal(t, 12.49, netted[0].Amount, "discount should reduce price")
+		assert.Equal(t, "AA/AAA BATTERY", netted[0].ItemDescription01)
+	})
+
+	t.Run("returns orphaned discount when no parent found", func(t *testing.T) {
+		items := []ReceiptItem{
+			{ItemNumber: "111", ItemDescription01: "CHICKEN", Amount: 10.00, Unit: 1},
+			{ItemNumber: "999", ItemDescription01: "/UNKNOWN ITEM", Amount: -2.00, Unit: -1},
+		}
+		netted, orphaned := NetDiscounts(items)
+		assert.Len(t, netted, 1)
+		assert.Len(t, orphaned, 1)
+		assert.Equal(t, 10.00, netted[0].Amount, "unmatched discount must not affect other items")
+		assert.Equal(t, "/UNKNOWN ITEM", orphaned[0].ItemDescription01)
+	})
+
+	t.Run("multiple discounts on same item", func(t *testing.T) {
+		items := []ReceiptItem{
+			{ItemNumber: "1000", ItemDescription01: "TOILET PAPER", Amount: 25.99, Unit: 1},
+			{ItemNumber: "2001", ItemDescription01: "/1000", Amount: -2.00, Unit: -1},
+			{ItemNumber: "2002", ItemDescription01: "/1000", Amount: -1.00, Unit: -1},
+		}
+		netted, orphaned := NetDiscounts(items)
+		assert.Len(t, netted, 1)
+		assert.Len(t, orphaned, 0)
+		assert.Equal(t, 22.99, netted[0].Amount)
+	})
+
+	t.Run("empty input returns empty slices", func(t *testing.T) {
+		netted, orphaned := NetDiscounts(nil)
+		assert.Empty(t, netted)
+		assert.Empty(t, orphaned)
+	})
+
+	t.Run("no discounts returns all items unchanged", func(t *testing.T) {
+		items := []ReceiptItem{
+			{ItemNumber: "1", ItemDescription01: "MILK", Amount: 4.99, Unit: 1},
+			{ItemNumber: "2", ItemDescription01: "EGGS", Amount: 6.99, Unit: 1},
+		}
+		netted, orphaned := NetDiscounts(items)
+		assert.Len(t, netted, 2)
+		assert.Len(t, orphaned, 0)
+	})
+}
