@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.10] - 2026-05-27
+
+### Fixed
+- **`NetDiscounts` word-overlap fallback**: Added a fourth matching strategy for cases where a coupon references a parent by a generic category name that shares no substring with the branded product description. For example, a coupon with `/AAA BATTERY` now correctly matches an item described as `DURACELL AAA` via the shared token `AAA`. Words shorter than 3 characters are excluded to avoid false positives. When multiple candidates share words with the coupon reference, the item with the most words in common is chosen.
+
+[0.3.10]: https://github.com/eshaffer321/costco-go/compare/v0.3.9...v0.3.10
+
 ## [0.3.9] - 2026-05-26
 
 ### Added

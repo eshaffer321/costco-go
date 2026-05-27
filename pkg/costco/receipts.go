@@ -112,12 +112,14 @@ func (item *ReceiptItem) GetParentItemNumber() string {
 // Costco receipts contain discount items whose ItemDescription01 starts with "/".
 // The part after "/" is either an item number (e.g. "/1553261") or a description
 // token (e.g. "/AAA BATTERY"). NetDiscounts matches each discount to its parent
-// using three strategies in order:
+// using four strategies in order:
 //
-//  1. Exact item-number match
-//  2. Exact description match (case-insensitive)
-//  3. Substring/contains match (case-insensitive) — handles cases like "/AAA BATTERY"
-//     matching a parent described as "AA/AAA BATTERY"
+//  1. Exact item-number match — "/1553261" → item number "1553261"
+//  2. Exact description match (case-insensitive) — "/AAA BATTERY" → item "AAA BATTERY"
+//  3. Substring/contains match (case-insensitive) — "/AAA BATTERY" → "AA/AAA BATTERY"
+//  4. Word-overlap match — picks the item whose description shares the most words
+//     (≥3 chars) with the coupon reference. Handles cases like "/AAA BATTERY"
+//     matching "DURACELL AAA" via the shared token "AAA".
 //
 // Returns:
 //   - netted: regular (non-discount) items with prices adjusted
@@ -158,15 +160,44 @@ func NetDiscounts(items []ReceiptItem) (netted []ReceiptItem, orphaned []Receipt
 			continue
 		}
 		// 3. Substring/contains match.
+		// Forward direction (desc contains ref) is preferred and unambiguous.
+		// Reverse direction (ref contains desc) is also accepted but only when the
+		// description is at least half the length of the reference, so a very short
+		// item description can't vacuously match a long coupon token.
 		matched := false
 		for desc, e := range byDesc {
-			if strings.Contains(desc, upperRef) || strings.Contains(upperRef, desc) {
+			forward := strings.Contains(desc, upperRef)
+			reverse := strings.Contains(upperRef, desc) && len(desc) >= len(upperRef)/2
+			if forward || reverse {
 				netted[e.idx].Amount += item.Amount
 				matched = true
 				break
 			}
 		}
-		if !matched {
+		if matched {
+			continue
+		}
+		// 4. Word-overlap match: score each candidate by how many significant words
+		// (≥3 chars) from the coupon reference appear in the item description.
+		// Pick the highest-scoring candidate; ties keep the first encountered.
+		refWords := strings.Fields(upperRef)
+		bestIdx := -1
+		bestScore := 0
+		for desc, e := range byDesc {
+			score := 0
+			for _, word := range refWords {
+				if len(word) >= 3 && strings.Contains(desc, word) {
+					score++
+				}
+			}
+			if score > bestScore {
+				bestScore = score
+				bestIdx = e.idx
+			}
+		}
+		if bestScore > 0 {
+			netted[bestIdx].Amount += item.Amount
+		} else {
 			orphaned = append(orphaned, item)
 		}
 	}
