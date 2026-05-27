@@ -2,7 +2,7 @@ package costco
 
 // Library Version
 const (
-	Version = "0.3.9"
+	Version = "0.3.10"
 )
 
 // API Endpoints

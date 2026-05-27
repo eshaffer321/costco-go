@@ -362,4 +362,44 @@ func TestNetDiscounts(t *testing.T) {
 		assert.Len(t, netted, 2)
 		assert.Len(t, orphaned, 0)
 	})
+
+	t.Run("applies discount via word overlap when item brand differs from coupon category", func(t *testing.T) {
+		// Real receipt (barcode 21134301000462605131128):
+		//   item_number=1627198  desc01="DURACELL AAA"   (the actual product)
+		//   item_number=379938   desc01="/AAA BATTERY"   (the coupon)
+		//
+		// "DURACELL AAA" does not contain "AAA BATTERY", and "AAA BATTERY" does not
+		// contain "DURACELL AAA", so neither the substring fallback nor exact match
+		// works. The shared word "AAA" must be used to identify the parent.
+		items := []ReceiptItem{
+			{ItemNumber: "1627198", ItemDescription01: "DURACELL AAA", ItemDescription02: "40PK BATTERIES P432", Amount: 20.99, Unit: 1},
+			{ItemNumber: "379938", ItemDescription01: "/AAA BATTERY", Amount: -2.50, Unit: -1},
+		}
+		netted, orphaned := NetDiscounts(items)
+		assert.Len(t, netted, 1, "should have 1 item after netting word-overlap-matched discount")
+		assert.Len(t, orphaned, 0, "discount should be matched via word overlap, not orphaned")
+		assert.InDelta(t, 18.49, netted[0].Amount, 0.001, "discount should be applied to DURACELL AAA")
+		assert.Equal(t, "DURACELL AAA", netted[0].ItemDescription01)
+	})
+
+	t.Run("word overlap picks best match when multiple candidates share words", func(t *testing.T) {
+		// If two items both share words with the discount ref, pick the one with more
+		// words in common.
+		items := []ReceiptItem{
+			{ItemNumber: "100", ItemDescription01: "AA BATTERY", Amount: 15.99, Unit: 1},       // shares "BATTERY"
+			{ItemNumber: "200", ItemDescription01: "AAA BATTERY PACK", Amount: 20.99, Unit: 1}, // shares "AAA" + "BATTERY"
+			{ItemNumber: "379938", ItemDescription01: "/AAA BATTERY", Amount: -2.50, Unit: -1},
+		}
+		netted, orphaned := NetDiscounts(items)
+		assert.Len(t, netted, 2)
+		assert.Len(t, orphaned, 0, "discount should be matched to best candidate")
+		// Find the AAA BATTERY PACK item and verify it got the discount
+		for _, item := range netted {
+			if item.ItemDescription01 == "AAA BATTERY PACK" {
+				assert.InDelta(t, 18.49, item.Amount, 0.001, "discount should go to the better word-overlap match")
+			} else {
+				assert.InDelta(t, 15.99, item.Amount, 0.001, "other item should be unaffected")
+			}
+		}
+	})
 }
