@@ -383,22 +383,24 @@ func TestNetDiscounts(t *testing.T) {
 	})
 
 	t.Run("word overlap picks best match when multiple candidates share words", func(t *testing.T) {
-		// If two items both share words with the discount ref, pick the one with more
-		// words in common.
+		// Two items where only word-overlap can distinguish which is the right parent.
+		// "DURACELL AA"  → word "AA" is 2 chars, below the 3-char floor → score 0
+		// "DURACELL AAA" → word "AAA" is 3 chars and appears in "AAA BATTERY" → score 1
+		// Neither candidate is a substring of the ref or vice versa, so no ambiguity
+		// from map-iteration order in the substring step.
 		items := []ReceiptItem{
-			{ItemNumber: "100", ItemDescription01: "AA BATTERY", Amount: 15.99, Unit: 1},       // shares "BATTERY"
-			{ItemNumber: "200", ItemDescription01: "AAA BATTERY PACK", Amount: 20.99, Unit: 1}, // shares "AAA" + "BATTERY"
+			{ItemNumber: "100", ItemDescription01: "DURACELL AA", Amount: 15.99, Unit: 1},  // score 0: "AA" < 3 chars
+			{ItemNumber: "200", ItemDescription01: "DURACELL AAA", Amount: 20.99, Unit: 1}, // score 1: "AAA" matches
 			{ItemNumber: "379938", ItemDescription01: "/AAA BATTERY", Amount: -2.50, Unit: -1},
 		}
 		netted, orphaned := NetDiscounts(items)
 		assert.Len(t, netted, 2)
 		assert.Len(t, orphaned, 0, "discount should be matched to best candidate")
-		// Find the AAA BATTERY PACK item and verify it got the discount
 		for _, item := range netted {
-			if item.ItemDescription01 == "AAA BATTERY PACK" {
-				assert.InDelta(t, 18.49, item.Amount, 0.001, "discount should go to the better word-overlap match")
+			if item.ItemDescription01 == "DURACELL AAA" {
+				assert.InDelta(t, 18.49, item.Amount, 0.001, "discount should go to the higher word-overlap match")
 			} else {
-				assert.InDelta(t, 15.99, item.Amount, 0.001, "other item should be unaffected")
+				assert.InDelta(t, 15.99, item.Amount, 0.001, "DURACELL AA should be unaffected (no word overlap)")
 			}
 		}
 	})

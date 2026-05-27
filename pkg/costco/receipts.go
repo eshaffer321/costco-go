@@ -160,9 +160,15 @@ func NetDiscounts(items []ReceiptItem) (netted []ReceiptItem, orphaned []Receipt
 			continue
 		}
 		// 3. Substring/contains match.
+		// Forward direction (desc contains ref) is preferred and unambiguous.
+		// Reverse direction (ref contains desc) is also accepted but only when the
+		// description is at least half the length of the reference, so a very short
+		// item description can't vacuously match a long coupon token.
 		matched := false
 		for desc, e := range byDesc {
-			if strings.Contains(desc, upperRef) || strings.Contains(upperRef, desc) {
+			forward := strings.Contains(desc, upperRef)
+			reverse := strings.Contains(upperRef, desc) && len(desc) >= len(upperRef)/2
+			if forward || reverse {
 				netted[e.idx].Amount += item.Amount
 				matched = true
 				break
