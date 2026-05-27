@@ -107,6 +107,72 @@ func (item *ReceiptItem) GetParentItemNumber() string {
 	return strings.TrimSpace(strings.TrimPrefix(item.ItemDescription01, "/"))
 }
 
+// NetDiscounts applies discount line items to their parent items and returns the result.
+//
+// Costco receipts contain discount items whose ItemDescription01 starts with "/".
+// The part after "/" is either an item number (e.g. "/1553261") or a description
+// token (e.g. "/AAA BATTERY"). NetDiscounts matches each discount to its parent
+// using three strategies in order:
+//
+//  1. Exact item-number match
+//  2. Exact description match (case-insensitive)
+//  3. Substring/contains match (case-insensitive) — handles cases like "/AAA BATTERY"
+//     matching a parent described as "AA/AAA BATTERY"
+//
+// Returns:
+//   - netted: regular (non-discount) items with prices adjusted
+//   - orphaned: discount items that could not be matched to any parent
+func NetDiscounts(items []ReceiptItem) (netted []ReceiptItem, orphaned []ReceiptItem) {
+	// Index non-discount items by item number and by upper-cased description.
+	type entry struct {
+		idx int // index into netted slice (built in first pass)
+	}
+	byNumber := make(map[string]*entry)
+	byDesc := make(map[string]*entry)
+
+	for _, item := range items {
+		if !item.IsDiscount() {
+			netted = append(netted, item)
+			e := &entry{idx: len(netted) - 1}
+			byNumber[item.ItemNumber] = e
+			byDesc[strings.ToUpper(strings.TrimSpace(item.ItemDescription01))] = e
+		}
+	}
+
+	// Apply discounts.
+	for _, item := range items {
+		if !item.IsDiscount() {
+			continue
+		}
+		ref := item.GetParentItemNumber()
+		upperRef := strings.ToUpper(ref)
+
+		// 1. Item number match.
+		if e, ok := byNumber[ref]; ok {
+			netted[e.idx].Amount += item.Amount
+			continue
+		}
+		// 2. Exact description match.
+		if e, ok := byDesc[upperRef]; ok {
+			netted[e.idx].Amount += item.Amount
+			continue
+		}
+		// 3. Substring/contains match.
+		matched := false
+		for desc, e := range byDesc {
+			if strings.Contains(desc, upperRef) || strings.Contains(upperRef, desc) {
+				netted[e.idx].Amount += item.Amount
+				matched = true
+				break
+			}
+		}
+		if !matched {
+			orphaned = append(orphaned, item)
+		}
+	}
+	return
+}
+
 // Tender represents payment information on a receipt
 type Tender struct {
 	TenderTypeCode               string  `json:"tenderTypeCode"`
