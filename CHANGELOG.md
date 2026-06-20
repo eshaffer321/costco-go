@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.11] - 2026-06-20
+
+### Fixed
+- **OAuth B2C Policy Update**: Updated token endpoint from B2C policy `201` to `209` to match Costco's current authentication setup.
+- **Token Refresh**: Removed unsupported `scope` parameter from refresh token requests, which was causing `AADB2C90117` errors. The `refresh_token` grant type should only include `grant_type`, `client_id`, and `refresh_token`.
+- **Password Grant Removal**: Removed password-based authentication entirely. OAuth2 password grant no longer works with Costco's current setup. Users must use token import from browser: `costco-cli -cmd import-token`.
+
+[0.3.11]: https://github.com/eshaffer321/costco-go/compare/v0.3.10...v0.3.11
+
 ## [0.3.10] - 2026-05-27
 
 ### Fixed
