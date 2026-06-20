@@ -6,6 +6,20 @@ This document contains important information for AI assistants (like Claude) wor
 
 This is a Go client library and CLI for accessing Costco order history and receipt data via their GraphQL API. The library handles OAuth2 authentication, automatic token refresh, and provides a clean Go interface for fetching orders and receipts.
 
+## ⚠️ Known Issue: Password Grant Authentication
+
+**Status:** Password-based authentication (`grant_type=password`) does NOT work with Costco's current OAuth2 setup.
+
+**Why:** Costco's OAuth2 endpoint requires Authorization Code flow with PKCE, not the password grant that costco-go currently implements. Attempting password grant authentication results in Azure AD B2C errors about unsupported scopes.
+
+**Workaround:** Use token import from browser instead:
+```bash
+costco-cli -cmd import-token
+# Paste OAuth response JSON from browser, press Ctrl+D
+```
+
+**Future Work:** Either (a) implement Authorization Code flow with browser redirect, or (b) remove password grant entirely and document token import as the only supported method. Current approach is broken and misleading.
+
 ## Project Structure
 
 ```

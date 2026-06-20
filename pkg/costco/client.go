@@ -92,6 +92,10 @@ func NewClient(config Config) *Client {
 }
 
 func (c *Client) authenticate() error {
+	// ⚠️ DEPRECATED: Password grant authentication no longer works with Costco's OAuth2 setup.
+	// Costco requires Authorization Code flow with PKCE. This function will fail with
+	// Azure AD B2C errors. Use token import from browser instead (costco-cli -cmd import-token).
+	// See CLAUDE.md for details.
 	c.getLogger().Debug("authenticating with costco", slog.String("email", c.config.Email))
 
 	data := url.Values{}
