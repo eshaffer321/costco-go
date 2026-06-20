@@ -141,7 +141,6 @@ func (c *Client) refreshToken() error {
 
 	data := url.Values{}
 	data.Set("client_id", ClientID)
-	data.Set("scope", Scope)
 	data.Set("grant_type", RefreshGrantType)
 	data.Set("client_info", "1")
 	data.Set("x-client-SKU", "msal.js.browser")
