@@ -139,10 +139,10 @@ func TestGetReceiptsArrayResponse(t *testing.T) {
 
 // TestScopeConfiguration tests that the scope is correctly configured
 func TestScopeConfiguration(t *testing.T) {
-	// Verify the scope matches what the Costco web application uses
-	// The scope includes 'profile' which allows tokens from both web and CLI to work interchangeably
-	assert.Equal(t, "openid profile offline_access", Scope)
-	assert.Contains(t, Scope, "profile", "Scope should contain 'profile' to match Costco web application")
+	// Verify the scope includes the required resource identifier for Azure AD B2C
+	assert.Contains(t, Scope, "openid")
+	assert.Contains(t, Scope, "offline_access")
+	assert.Contains(t, Scope, "/.default")
 }
 
 // TestEmptyArrayResponse tests handling of empty array responses

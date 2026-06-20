@@ -91,88 +91,6 @@ func NewClient(config Config) *Client {
 	return client
 }
 
-func (c *Client) authenticate() error {
-	// ⚠️ DEPRECATED: Password grant authentication no longer works with Costco's OAuth2 setup.
-	// Costco requires Authorization Code flow with PKCE. This function will fail with
-	// Azure AD B2C errors. Use token import from browser instead (costco-cli -cmd import-token).
-	// See CLAUDE.md for details.
-	c.getLogger().Debug("authenticating with costco", slog.String("email", c.config.Email))
-
-	data := url.Values{}
-	data.Set("client_id", ClientID)
-	data.Set("scope", Scope)
-	data.Set("grant_type", GrantType)
-	data.Set("username", c.config.Email)
-	data.Set("password", c.config.Password)
-	data.Set("response_type", ResponseType)
-	data.Set("client_info", "1")
-	data.Set("x-client-SKU", "msal.js.browser")
-	data.Set("x-client-VER", "2.32.1")
-	data.Set("x-ms-lib-capability", "retry-after, h429")
-	data.Set("x-client-current-telemetry", "5|61,0,,,|@azure/msal-react,1.5.1")
-	data.Set("x-client-last-telemetry", "5|0|||0,0")
-	data.Set("client-request-id", generateUUID())
-
-	req, err := http.NewRequest("POST", TokenEndpoint, bytes.NewBufferString(data.Encode()))
-	if err != nil {
-		c.getLogger().Error("failed to create auth request", slog.String("error", err.Error()))
-		return fmt.Errorf("creating auth request: %w", err)
-	}
-
-	req.Header.Set("Content-Type", "application/x-www-form-urlencoded;charset=utf-8")
-	req.Header.Set("Accept", "*/*")
-	req.Header.Set("Accept-Language", "en-US,en;q=0.9")
-	req.Header.Set("Cache-Control", "no-cache")
-	req.Header.Set("Origin", "https://www.costco.com")
-	req.Header.Set("Pragma", "no-cache")
-	req.Header.Set("Referer", "https://www.costco.com/")
-	req.Header.Set("User-Agent", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36")
-
-	c.getLogger().Debug("sending auth request", slog.String("endpoint", TokenEndpoint), slog.String("method", "POST"))
-	resp, err := c.httpClient.Do(req)
-	if err != nil {
-		c.getLogger().Error("auth request failed", slog.String("error", err.Error()))
-		return fmt.Errorf("executing auth request: %w", err)
-	}
-	defer resp.Body.Close()
-
-	c.getLogger().Debug("auth response received", slog.Int("status_code", resp.StatusCode))
-
-	if resp.StatusCode != http.StatusOK {
-		body, _ := io.ReadAll(resp.Body)
-		c.getLogger().Error("authentication failed", slog.Int("status_code", resp.StatusCode))
-		return fmt.Errorf("auth failed with status %d: %s", resp.StatusCode, string(body))
-	}
-
-	var tokenResp TokenResponse
-	if err := json.NewDecoder(resp.Body).Decode(&tokenResp); err != nil {
-		c.getLogger().Error("failed to decode token response", slog.String("error", err.Error()))
-		return fmt.Errorf("decoding token response: %w", err)
-	}
-
-	c.mu.Lock()
-	c.token = &tokenResp
-	c.tokenExpiry = c.calculateTokenExpiry(tokenResp.IDToken)
-	c.mu.Unlock()
-
-	c.getLogger().Info("authenticated", slog.Time("token_expiry", c.tokenExpiry))
-
-	// Save tokens to disk
-	storedTokens := &StoredTokens{
-		IDToken:               tokenResp.IDToken,
-		RefreshToken:          tokenResp.RefreshToken,
-		TokenExpiry:           c.tokenExpiry,
-		RefreshTokenExpiresAt: time.Now().Add(time.Duration(tokenResp.RefreshTokenExpiresIn) * time.Second),
-	}
-	c.getLogger().Debug("saving tokens to disk")
-	if err := SaveTokens(storedTokens); err != nil {
-		c.getLogger().Warn("failed to save tokens", slog.String("error", err.Error()))
-	} else {
-		c.getLogger().Info("tokens saved successfully")
-	}
-
-	return nil
-}
 
 func (c *Client) calculateTokenExpiry(tokenString string) time.Time {
 	token, _, err := new(jwt.Parser).ParseUnverified(tokenString, jwt.MapClaims{})
@@ -211,7 +129,7 @@ func (c *Client) refreshTokenIfNeeded() error {
 		return c.refreshToken()
 	}
 
-	return c.authenticate()
+	return fmt.Errorf("no valid tokens available. Run 'costco-cli -cmd import-token' to import tokens from your browser")
 }
 
 func (c *Client) refreshToken() error {
@@ -260,8 +178,9 @@ func (c *Client) refreshToken() error {
 	c.getLogger().Debug("refresh response received", slog.Int("status_code", resp.StatusCode))
 
 	if resp.StatusCode != http.StatusOK {
-		c.getLogger().Warn("token refresh failed, falling back to authentication", slog.Int("status_code", resp.StatusCode))
-		return c.authenticate()
+		body, _ := io.ReadAll(resp.Body)
+		c.getLogger().Error("token refresh failed", slog.Int("status_code", resp.StatusCode), slog.String("body", string(body)))
+		return fmt.Errorf("token refresh failed with status %d: %s. Run 'costco-cli -cmd import-token' to re-import tokens", resp.StatusCode, string(body))
 	}
 
 	var tokenResp TokenResponse

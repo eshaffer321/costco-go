@@ -8,13 +8,12 @@ import (
 // Configuration and options for the Costco client
 
 // Config holds the configuration for creating a new Costco client.
-// Email and Password are required for authentication.
+// Email is used only for logging purposes. Authentication is done via tokens.
 // WarehouseNumber defaults to "847" if not provided.
 // TokenRefreshBuffer controls how early tokens are refreshed (default: 5 minutes before expiry).
 // Logger is optional - if nil, all logs are silently discarded.
 type Config struct {
-	Email              string        // Costco account email (required)
-	Password           string        // Costco account password (required)
+	Email              string        // Costco account email (for logging only)
 	WarehouseNumber    string        // Default warehouse number (default: "847")
 	TokenRefreshBuffer time.Duration // How early to refresh tokens before expiry (default: 5min)
 	Logger             *slog.Logger  // Optional structured logger (nil = silent)

@@ -2,13 +2,9 @@ package main
 
 import (
 	"bufio"
-	"context"
 	"fmt"
 	"os"
 	"strings"
-	"syscall"
-
-	"golang.org/x/term"
 
 	"github.com/eshaffer321/costco-go/pkg/costco"
 )
@@ -65,47 +61,9 @@ func setupCredentials() error {
 	}
 
 	fmt.Println("\n✓ Configuration saved to ~/.costco/config.json")
-
-	// Ask if they want to authenticate now
-	fmt.Print("\nDo you want to authenticate now? (y/n): ")
-	answer, _ := reader.ReadString('\n')
-	answer = strings.TrimSpace(strings.ToLower(answer))
-
-	if answer == "y" || answer == "yes" {
-		fmt.Print("Password: ")
-		passwordBytes, err := term.ReadPassword(int(syscall.Stdin))
-		if err != nil {
-			return fmt.Errorf("failed to read password: %w", err)
-		}
-		fmt.Println()
-
-		password := string(passwordBytes)
-
-		// Create client and authenticate
-		client := costco.NewClient(costco.Config{
-			Email:           email,
-			Password:        password,
-			WarehouseNumber: warehouse,
-		})
-
-		fmt.Print("Authenticating...")
-
-		// Force authentication by making a simple request
-		ctx := context.Background()
-		_, err = client.GetReceipts(ctx, "1/01/2025", "1/09/2025", "all", "all")
-		if err != nil {
-			return fmt.Errorf("authentication failed: %w", err)
-		}
-
-		fmt.Println(" ✓")
-		fmt.Println("✓ Authentication successful! Tokens saved to ~/.costco/tokens.json")
-	}
-
-	fmt.Println("\nSetup complete! You can now use the CLI commands.")
-	fmt.Println("\nExample commands:")
-	fmt.Println("  costco-cli orders      - Get recent orders")
-	fmt.Println("  costco-cli receipts    - Get recent receipts")
-	fmt.Println("  costco-cli info        - Show config info")
+	fmt.Println("\nSetup complete! Next, run:")
+	fmt.Println("  costco-cli -cmd import-token")
+	fmt.Println("\nThen log in to costco.com in your browser and paste the OAuth token response.")
 
 	return nil
 }

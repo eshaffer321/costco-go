@@ -7,10 +7,7 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"syscall"
 	"time"
-
-	"golang.org/x/term"
 
 	"github.com/eshaffer321/costco-go/pkg/costco"
 )
@@ -58,19 +55,10 @@ func main() {
 		log.Fatal("No configuration found. Run 'costco-cli -cmd setup' first")
 	}
 
-	// Check if we have tokens, if not we need password
+	// Check if we have valid tokens
 	tokens, _ := costco.LoadTokens()
-	password := ""
-
 	if tokens == nil || time.Now().After(tokens.RefreshTokenExpiresAt) {
-		// Need to authenticate - get password
-		fmt.Print("Password: ")
-		passwordBytes, err := term.ReadPassword(int(syscall.Stdin))
-		if err != nil {
-			log.Fatal("Failed to read password")
-		}
-		fmt.Println()
-		password = string(passwordBytes)
+		log.Fatal("No valid tokens found. Run 'costco-cli -cmd import-token' to import tokens from your browser")
 	}
 
 	// Default date range if not provided
@@ -83,7 +71,6 @@ func main() {
 
 	config := costco.Config{
 		Email:              storedConfig.Email,
-		Password:           password,
 		WarehouseNumber:    storedConfig.WarehouseNumber,
 		TokenRefreshBuffer: 5 * time.Minute,
 	}
