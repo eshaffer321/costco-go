@@ -21,7 +21,6 @@ import (
 func TestNewClient(t *testing.T) {
 	config := Config{
 		Email:           "test@example.com",
-		Password:        "password",
 		WarehouseNumber: "847",
 	}
 
@@ -29,61 +28,8 @@ func TestNewClient(t *testing.T) {
 
 	assert.NotNil(t, client)
 	assert.Equal(t, config.Email, client.config.Email)
-	assert.Equal(t, config.Password, client.config.Password)
 	assert.Equal(t, config.WarehouseNumber, client.config.WarehouseNumber)
 	assert.Equal(t, 5*time.Minute, client.config.TokenRefreshBuffer)
-}
-
-func TestAuthenticate(t *testing.T) {
-	cleanup := SetupTestConfig(t)
-	defer cleanup()
-
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		assert.Equal(t, "/oauth2/v2.0/token", r.URL.Path)
-		assert.Equal(t, "POST", r.Method)
-		assert.Equal(t, HeaderContentTypeForm, r.Header.Get("Content-Type"))
-
-		err := r.ParseForm()
-		require.NoError(t, err)
-
-		assert.Equal(t, ClientID, r.Form.Get("client_id"))
-		assert.Equal(t, "test@example.com", r.Form.Get("username"))
-		assert.Equal(t, "password123", r.Form.Get("password"))
-		assert.Equal(t, GrantType, r.Form.Get("grant_type"))
-
-		resp := TokenResponse{
-			IDToken:               generateTestJWT(time.Now().Add(1 * time.Hour).Unix()),
-			TokenType:             "Bearer",
-			RefreshToken:          "test-refresh-token",
-			RefreshTokenExpiresIn: 7776000,
-		}
-
-		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(resp)
-	}))
-	defer server.Close()
-
-	client := &Client{
-		httpClient: &http.Client{
-			Transport: &testTransport{
-				baseURL: server.URL,
-			},
-		},
-		config: Config{
-			Email:              "test@example.com",
-			Password:           "password123",
-			WarehouseNumber:    "847",
-			TokenRefreshBuffer: 5 * time.Minute,
-		},
-	}
-
-	err := client.authenticate()
-	require.NoError(t, err)
-
-	assert.NotNil(t, client.token)
-	assert.NotEmpty(t, client.token.IDToken)
-	assert.Equal(t, "test-refresh-token", client.token.RefreshToken)
-	assert.True(t, client.tokenExpiry.After(time.Now()))
 }
 
 func TestRefreshToken(t *testing.T) {
@@ -118,7 +64,6 @@ func TestRefreshToken(t *testing.T) {
 		},
 		config: Config{
 			Email:              "test@example.com",
-			Password:           "password123",
 			WarehouseNumber:    "847",
 			TokenRefreshBuffer: 5 * time.Minute,
 		},
@@ -208,7 +153,6 @@ func TestGetOnlineOrders(t *testing.T) {
 		},
 		config: Config{
 			Email:              "test@example.com",
-			Password:           "password123",
 			WarehouseNumber:    "847",
 			TokenRefreshBuffer: 5 * time.Minute,
 		},
@@ -305,7 +249,6 @@ func TestGetReceiptDetail(t *testing.T) {
 		},
 		config: Config{
 			Email:              "test@example.com",
-			Password:           "password123",
 			WarehouseNumber:    "847",
 			TokenRefreshBuffer: 5 * time.Minute,
 		},
@@ -410,7 +353,6 @@ func TestClientWithLogger(t *testing.T) {
 	// Create client with custom logger
 	config := Config{
 		Email:              "test@example.com",
-		Password:           "password123",
 		WarehouseNumber:    "847",
 		TokenRefreshBuffer: 5 * time.Minute,
 		Logger:             logger,
@@ -479,7 +421,6 @@ func TestClientWithoutLogger(t *testing.T) {
 	// Create client without logger (nil logger)
 	config := Config{
 		Email:              "test@example.com",
-		Password:           "password123",
 		WarehouseNumber:    "847",
 		TokenRefreshBuffer: 5 * time.Minute,
 		Logger:             nil, // Explicitly nil
@@ -557,7 +498,6 @@ func TestClientLoggerWithJSON(t *testing.T) {
 
 	config := Config{
 		Email:              "test@example.com",
-		Password:           "password123",
 		WarehouseNumber:    "847",
 		TokenRefreshBuffer: 5 * time.Minute,
 		Logger:             logger,

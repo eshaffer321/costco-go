@@ -125,7 +125,6 @@ func TestGetAllTransactionItems(t *testing.T) {
 		},
 		config: Config{
 			Email:              "test@example.com",
-			Password:           "password123",
 			WarehouseNumber:    "847",
 			TokenRefreshBuffer: 5 * time.Minute,
 		},
@@ -268,7 +267,6 @@ func TestGetFrequentItems(t *testing.T) {
 		},
 		config: Config{
 			Email:              "test@example.com",
-			Password:           "password123",
 			WarehouseNumber:    "847",
 			TokenRefreshBuffer: 5 * time.Minute,
 		},
@@ -411,7 +409,6 @@ func TestGetSpendingSummary(t *testing.T) {
 		},
 		config: Config{
 			Email:              "test@example.com",
-			Password:           "password123",
 			WarehouseNumber:    "847",
 			TokenRefreshBuffer: 5 * time.Minute,
 		},
@@ -553,7 +550,6 @@ func TestGetItemHistory(t *testing.T) {
 		},
 		config: Config{
 			Email:              "test@example.com",
-			Password:           "password123",
 			WarehouseNumber:    "847",
 			TokenRefreshBuffer: 5 * time.Minute,
 		},
