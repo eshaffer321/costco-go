@@ -156,6 +156,11 @@ func TestGetOnlineOrders(t *testing.T) {
 			WarehouseNumber:    "847",
 			TokenRefreshBuffer: 5 * time.Minute,
 		},
+		token: &TokenResponse{
+			IDToken:      generateTestJWT(time.Now().Add(1 * time.Hour).Unix()),
+			RefreshToken: "test-refresh-token",
+		},
+		tokenExpiry: time.Now().Add(1 * time.Hour),
 	}
 
 	orders, err := client.GetOnlineOrders(context.Background(), "2025-01-01", "2025-01-31", 1, 10)
@@ -252,6 +257,11 @@ func TestGetReceiptDetail(t *testing.T) {
 			WarehouseNumber:    "847",
 			TokenRefreshBuffer: 5 * time.Minute,
 		},
+		token: &TokenResponse{
+			IDToken:      generateTestJWT(time.Now().Add(1 * time.Hour).Unix()),
+			RefreshToken: "test-refresh-token",
+		},
+		tokenExpiry: time.Now().Add(1 * time.Hour),
 	}
 
 	receipt, err := client.GetReceiptDetail(context.Background(), "21134300501862509051323", "warehouse")
@@ -432,6 +442,11 @@ func TestClientWithoutLogger(t *testing.T) {
 			baseURL: server.URL,
 		},
 	}
+	client.token = &TokenResponse{
+		IDToken:      generateTestJWT(time.Now().Add(1 * time.Hour).Unix()),
+		RefreshToken: "test-refresh-token",
+	}
+	client.tokenExpiry = time.Now().Add(1 * time.Hour)
 
 	// Perform an operation that would normally log
 	_, err := client.GetOnlineOrders(context.Background(), "2025-01-01", "2025-01-31", 1, 10)

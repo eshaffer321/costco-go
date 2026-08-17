@@ -128,6 +128,11 @@ func TestGetAllTransactionItems(t *testing.T) {
 			WarehouseNumber:    "847",
 			TokenRefreshBuffer: 5 * time.Minute,
 		},
+		token: &TokenResponse{
+			IDToken:      generateTestJWT(time.Now().Add(1 * time.Hour).Unix()),
+			RefreshToken: "test-refresh-token",
+		},
+		tokenExpiry: time.Now().Add(1 * time.Hour),
 	}
 
 	transactions, err := client.GetAllTransactionItems(context.Background(), "2025-01-01", "2025-01-31")
@@ -270,6 +275,11 @@ func TestGetFrequentItems(t *testing.T) {
 			WarehouseNumber:    "847",
 			TokenRefreshBuffer: 5 * time.Minute,
 		},
+		token: &TokenResponse{
+			IDToken:      generateTestJWT(time.Now().Add(1 * time.Hour).Unix()),
+			RefreshToken: "test-refresh-token",
+		},
+		tokenExpiry: time.Now().Add(1 * time.Hour),
 	}
 
 	// Test with no limit (return all)
@@ -412,6 +422,11 @@ func TestGetSpendingSummary(t *testing.T) {
 			WarehouseNumber:    "847",
 			TokenRefreshBuffer: 5 * time.Minute,
 		},
+		token: &TokenResponse{
+			IDToken:      generateTestJWT(time.Now().Add(1 * time.Hour).Unix()),
+			RefreshToken: "test-refresh-token",
+		},
+		tokenExpiry: time.Now().Add(1 * time.Hour),
 	}
 
 	summary, err := client.GetSpendingSummary(context.Background(), "2025-01-01", "2025-01-31")
@@ -553,6 +568,11 @@ func TestGetItemHistory(t *testing.T) {
 			WarehouseNumber:    "847",
 			TokenRefreshBuffer: 5 * time.Minute,
 		},
+		token: &TokenResponse{
+			IDToken:      generateTestJWT(time.Now().Add(1 * time.Hour).Unix()),
+			RefreshToken: "test-refresh-token",
+		},
+		tokenExpiry: time.Now().Add(1 * time.Hour),
 	}
 
 	// Get history for ITEM1 which appears in both transactions

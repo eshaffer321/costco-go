@@ -91,7 +91,6 @@ func NewClient(config Config) *Client {
 	return client
 }
 
-
 func (c *Client) calculateTokenExpiry(tokenString string) time.Time {
 	token, _, err := new(jwt.Parser).ParseUnverified(tokenString, jwt.MapClaims{})
 	if err != nil {
