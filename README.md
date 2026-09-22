@@ -195,7 +195,7 @@ Authentication requires a valid token from Costco's OAuth2 endpoint. Tokens are 
 ./costco-cli -cmd import-token
 ```
 
-This opens your `$EDITOR` (falling back to `vi`) with a scratch file — paste the JSON response body there, save, and quit. To get it:
+This prints instructions and waits for you to press Enter, then opens your `$EDITOR` (falling back to `vi`) with a scratch file — paste the JSON response body there, save, and quit. To get it:
 
 1. Log in to [costco.com](https://www.costco.com) in your browser
 2. Open DevTools → Network tab → filter by **Fetch/XHR**

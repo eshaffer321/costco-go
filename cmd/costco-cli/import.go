@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bufio"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -111,9 +112,11 @@ func runImportTokens() error {
 		return importTokens(os.Stdin, os.Stdout)
 	}
 
-	fmt.Println("Opening your editor to paste the token JSON (set $EDITOR to choose one; defaults to vi).")
+	fmt.Println("This will open your editor to paste the token JSON (set $EDITOR to choose one; defaults to vi).")
 	fmt.Println()
 	printImportInstructions(os.Stdout)
+	fmt.Print("Press Enter when you're ready to open the editor: ")
+	bufio.NewReader(os.Stdin).ReadString('\n')
 
 	data, err := editTokenJSON(runEditorCmd)
 	if err != nil {
