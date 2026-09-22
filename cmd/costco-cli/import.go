@@ -78,8 +78,8 @@ func editTokenJSON(runEditor func(path string) error) ([]byte, error) {
 	tmpFile.Close()
 	defer os.Remove(path)
 
-	if err := runEditor(path); err != nil {
-		return nil, err
+	if runErr := runEditor(path); runErr != nil {
+		return nil, runErr
 	}
 
 	data, err := os.ReadFile(path)
@@ -105,6 +105,24 @@ func runEditorCmd(path string) error {
 	return nil
 }
 
+// runImportTokensInteractive prints instructions, waits for the user to
+// press Enter (so a full-screen editor doesn't wipe them out immediately),
+// then opens the editor and imports whatever was saved.
+func runImportTokensInteractive(out io.Writer, waitIn io.Reader, edit func(func(string) error) ([]byte, error), runEditor func(string) error) error {
+	fmt.Fprintln(out, "This will open your editor to paste the token JSON (set $EDITOR to choose one; defaults to vi).")
+	fmt.Fprintln(out)
+	printImportInstructions(out)
+	fmt.Fprint(out, "Press Enter when you're ready to open the editor: ")
+	bufio.NewReader(waitIn).ReadString('\n')
+
+	data, err := edit(runEditor)
+	if err != nil {
+		return err
+	}
+
+	return processTokenJSON(data, out)
+}
+
 func runImportTokens() error {
 	// If a file path was given, or stdin is piped (not a terminal), read
 	// straight from stdin - this keeps scripted/non-interactive usage working.
@@ -112,18 +130,7 @@ func runImportTokens() error {
 		return importTokens(os.Stdin, os.Stdout)
 	}
 
-	fmt.Println("This will open your editor to paste the token JSON (set $EDITOR to choose one; defaults to vi).")
-	fmt.Println()
-	printImportInstructions(os.Stdout)
-	fmt.Print("Press Enter when you're ready to open the editor: ")
-	bufio.NewReader(os.Stdin).ReadString('\n')
-
-	data, err := editTokenJSON(runEditorCmd)
-	if err != nil {
-		return err
-	}
-
-	return processTokenJSON(data, os.Stdout)
+	return runImportTokensInteractive(os.Stdout, os.Stdin, editTokenJSON, runEditorCmd)
 }
 
 func runImportTokensFromFile(path string) error {

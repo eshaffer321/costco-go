@@ -135,3 +135,61 @@ func TestRunImportTokensFromFile_MissingFile(t *testing.T) {
 	err := runImportTokensFromFile(filepath.Join(t.TempDir(), "does-not-exist.json"))
 	assert.ErrorContains(t, err, "reading token file")
 }
+
+func TestRunImportTokensInteractive_Success(t *testing.T) {
+	withTempConfig(t)
+
+	exp := time.Now().Add(15 * time.Minute).Unix()
+	want := tokenJSON(t, exp)
+	fakeEdit := func(runEditor func(string) error) ([]byte, error) {
+		return []byte(want), nil
+	}
+
+	var out bytes.Buffer
+	waitIn := strings.NewReader("\n")
+
+	err := runImportTokensInteractive(&out, waitIn, fakeEdit, nil)
+	require.NoError(t, err)
+	assert.Contains(t, out.String(), "Press Enter when you're ready to open the editor")
+	assert.Contains(t, out.String(), "✓ Tokens saved")
+}
+
+func TestRunImportTokensInteractive_EditError(t *testing.T) {
+	fakeEdit := func(runEditor func(string) error) ([]byte, error) {
+		return nil, fmt.Errorf("editor blew up")
+	}
+
+	var out bytes.Buffer
+	err := runImportTokensInteractive(&out, strings.NewReader("\n"), fakeEdit, nil)
+	assert.ErrorContains(t, err, "editor blew up")
+}
+
+func TestRunEditorCmd_UsesEDITOR(t *testing.T) {
+	scriptPath := filepath.Join(t.TempDir(), "fake-editor.sh")
+	require.NoError(t, os.WriteFile(scriptPath, []byte("#!/bin/sh\necho 'edited-content' > \"$1\"\n"), 0o755))
+	t.Setenv("EDITOR", scriptPath)
+
+	targetPath := filepath.Join(t.TempDir(), "target.json")
+	require.NoError(t, os.WriteFile(targetPath, nil, 0o600))
+
+	require.NoError(t, runEditorCmd(targetPath))
+
+	data, err := os.ReadFile(targetPath)
+	require.NoError(t, err)
+	assert.Equal(t, "edited-content\n", string(data))
+}
+
+func TestRunEditorCmd_PropagatesCommandError(t *testing.T) {
+	t.Setenv("EDITOR", "/bin/false")
+
+	err := runEditorCmd(filepath.Join(t.TempDir(), "target.json"))
+	assert.ErrorContains(t, err, "running editor")
+}
+
+func TestIsInteractive_FalseForRegularFile(t *testing.T) {
+	f, err := os.CreateTemp(t.TempDir(), "not-a-tty")
+	require.NoError(t, err)
+	defer f.Close()
+
+	assert.False(t, isInteractive(f))
+}

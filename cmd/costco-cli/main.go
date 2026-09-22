@@ -35,14 +35,14 @@ func main() {
 	}
 
 	if *command == "import-token" {
-		var err error
+		var importErr error
 		if *tokenFile != "" {
-			err = runImportTokensFromFile(*tokenFile)
+			importErr = runImportTokensFromFile(*tokenFile)
 		} else {
-			err = runImportTokens()
+			importErr = runImportTokens()
 		}
-		if err != nil {
-			log.Fatal(err)
+		if importErr != nil {
+			log.Fatal(importErr)
 		}
 		return
 	}
