@@ -1,6 +1,6 @@
 # Costco Go Client
 
-[![Version](https://img.shields.io/badge/version-0.3.12-blue.svg)](https://github.com/eshaffer321/costco-go/releases/tag/v0.3.12)
+[![Version](https://img.shields.io/badge/version-0.3.13-blue.svg)](https://github.com/eshaffer321/costco-go/releases/tag/v0.3.13)
 
 A Go client library and CLI for accessing Costco order history and receipt data via their GraphQL API.
 
@@ -195,13 +195,25 @@ Authentication requires a valid token from Costco's OAuth2 endpoint. Tokens are 
 ./costco-cli -cmd import-token
 ```
 
-Then paste the JSON response body when prompted. To get it:
+This opens your `$EDITOR` (falling back to `vi`) with a scratch file — paste the JSON response body there, save, and quit. To get it:
 
 1. Log in to [costco.com](https://www.costco.com) in your browser
 2. Open DevTools → Network tab → filter by **Fetch/XHR**
 3. Search for **"token"** and select the request to the token endpoint
 4. Click the **Response** tab and copy the full JSON body
-5. Paste it into the terminal and press **Ctrl+D**
+5. Paste it into the editor, save, and close it
+
+If you'd rather not use the editor, save the response body to a file and pass it directly:
+
+```bash
+./costco-cli -cmd import-token -token-file token.json
+```
+
+You can also pipe it in non-interactively:
+
+```bash
+cat token.json | ./costco-cli -cmd import-token
+```
 
 The command will confirm the token was saved and show the expiry times:
 

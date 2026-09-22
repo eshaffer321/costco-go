@@ -21,6 +21,7 @@ func main() {
 		pageNumber = flag.Int("page", 1, "Page number for orders")
 		pageSize   = flag.Int("size", 10, "Page size for orders")
 		outputJSON = flag.Bool("json", false, "Output as JSON")
+		tokenFile  = flag.String("token-file", "", "Path to a file containing the token JSON (for import-token)")
 	)
 
 	flag.Parse()
@@ -34,7 +35,13 @@ func main() {
 	}
 
 	if *command == "import-token" {
-		if err := runImportTokens(); err != nil {
+		var err error
+		if *tokenFile != "" {
+			err = runImportTokensFromFile(*tokenFile)
+		} else {
+			err = runImportTokens()
+		}
+		if err != nil {
 			log.Fatal(err)
 		}
 		return

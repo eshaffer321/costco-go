@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.13] - 2026-09-21
+
+### Fixed
+- **`import-token` reliability**: Pasting the token JSON directly into the terminal and pressing Ctrl+D was unreliable across terminal emulators (bracketed paste, large payloads, etc.). When stdin is a terminal, `import-token` now opens `$EDITOR` (falling back to `vi`) on a temp file for pasting instead.
+
+### Added
+- **`-token-file` flag**: `costco-cli -cmd import-token -token-file path/to/token.json` imports token JSON straight from a file, bypassing both the editor and terminal paste. Piping via stdin (`cat token.json | costco-cli -cmd import-token`) continues to work as before.
+
+[0.3.13]: https://github.com/eshaffer321/costco-go/compare/v0.3.12...v0.3.13
+
 ## [0.3.12] - 2026-08-17
 
 ### Fixed

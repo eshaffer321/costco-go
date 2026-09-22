@@ -91,3 +91,47 @@ func TestImportTokens_WritesToDisk(t *testing.T) {
 	_, err := os.Stat(filepath.Join(configDir, "tokens.json"))
 	assert.NoError(t, err, "tokens.json should exist on disk after import")
 }
+
+func TestEditTokenJSON_ReturnsFileContentsWrittenByEditor(t *testing.T) {
+	exp := time.Now().Add(15 * time.Minute).Unix()
+	want := tokenJSON(t, exp)
+
+	fakeEditor := func(path string) error {
+		return os.WriteFile(path, []byte(want), 0o600)
+	}
+
+	got, err := editTokenJSON(fakeEditor)
+	require.NoError(t, err)
+	assert.Equal(t, want, string(got))
+}
+
+func TestEditTokenJSON_PropagatesEditorError(t *testing.T) {
+	fakeEditor := func(path string) error {
+		return fmt.Errorf("boom")
+	}
+
+	_, err := editTokenJSON(fakeEditor)
+	assert.ErrorContains(t, err, "boom")
+}
+
+func TestRunImportTokensFromFile_Success(t *testing.T) {
+	withTempConfig(t)
+
+	exp := time.Now().Add(15 * time.Minute).Unix()
+	dir := t.TempDir()
+	path := filepath.Join(dir, "token.json")
+	require.NoError(t, os.WriteFile(path, []byte(tokenJSON(t, exp)), 0o600))
+
+	err := runImportTokensFromFile(path)
+	require.NoError(t, err)
+
+	_, statErr := os.Stat(filepath.Join(os.Getenv("COSTCO_TEST_CONFIG_PATH"), "tokens.json"))
+	assert.NoError(t, statErr)
+}
+
+func TestRunImportTokensFromFile_MissingFile(t *testing.T) {
+	withTempConfig(t)
+
+	err := runImportTokensFromFile(filepath.Join(t.TempDir(), "does-not-exist.json"))
+	assert.ErrorContains(t, err, "reading token file")
+}
